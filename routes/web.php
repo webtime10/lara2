@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\ManufacturerController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\BudgetCalculatorController;
+use App\Http\Controllers\Admin\PromptsWp\BudgetPromptController;
 use App\Http\Controllers\Admin\PromptsWp\WeatherPromptController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
@@ -40,9 +42,13 @@ Route::prefix('admin')
         Route::resource('products', ProductController::class)->except(['show']);
         Route::resource('manufacturers', ManufacturerController::class)->except(['show']);
 
+        Route::get('budget-calculator', [BudgetCalculatorController::class, 'index'])->name('budget-calculator.index');
+
         Route::prefix('prompts-wp')->name('prompts-wp.')->group(function () {
             Route::get('weather', [WeatherPromptController::class, 'edit'])->name('weather');
             Route::post('weather/save', [WeatherPromptController::class, 'save'])->name('weather.save');
+            Route::get('budget', [BudgetPromptController::class, 'edit'])->name('budget');
+            Route::post('budget/save', [BudgetPromptController::class, 'save'])->name('budget.save');
         });
         
         // Только для админов

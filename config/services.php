@@ -74,6 +74,13 @@ return [
                 'ttl_hours' => (int) env('WEATHER_CACHE_TTL_HOURS', 48),
             ],
         ],
+        'budget' => [
+            'api_key' => env('PLUGIN_BUDGET_API_KEY', env('PLUGIN_API_KEY', env('WORDPRESS_WEBHOOK_SECRET', ''))),
+            'cache' => [
+                'enabled' => filter_var(env('BUDGET_CACHE_ENABLED', true), FILTER_VALIDATE_BOOL),
+                'ttl_hours' => (int) env('BUDGET_CACHE_TTL_HOURS', 48),
+            ],
+        ],
     ],
 
 ];

@@ -90,8 +90,23 @@ class WeatherAiService
         // Какая модель выбрана в админке (weather_ai_model в weather_promt)
 
         try {
-            $answer = $this->requestFromModel($modelKey, $material, $instruction);
-            // HTTP-запрос к Gemini или OpenAI, возврат сырого текста
+            $request = $this->requestFromModel($modelKey, $material, $instruction);
+            $answer = $request['text'];
+            $httpStatus = $request['http_status'];
+
+            if ($this->isGeminiModel($modelKey) && $this->shouldFallbackToOpenAiMini($answer, $httpStatus)) {
+                $fallbackKey = WeatherAiModelChoice::OPENAI_GPT_4O_MINI;
+                Log::warning('[plugin:weather] Gemini недоступен, fallback на OpenAI Mini', [
+                    'primary_model' => $modelKey,
+                    'http_status' => $httpStatus,
+                    'fallback_model' => $fallbackKey,
+                    'language' => $language,
+                ]);
+
+                $fallbackRequest = $this->requestFromModel($fallbackKey, $material, $instruction);
+                $answer = $fallbackRequest['text'];
+                $modelKey = $fallbackKey;
+            }
         } catch (RuntimeException $e) {
             Log::error('[plugin:weather] AI', ['error' => $e->getMessage(), 'model' => $modelKey]);
             // Неизвестная модель или ошибка клиента
@@ -339,44 +354,67 @@ TXT;
         // Три строки — входные данные калькулятора
     }
 
-    private function requestFromModel(string $modelKey, string $material, string $instruction): ?string
-    // Отправка в выбранный API, возврат сырого текста ответа
+    /**
+     * @return array{text: ?string, http_status: ?int}
+     */
+    private function requestFromModel(string $modelKey, string $material, string $instruction): array
     {
         if ($modelKey === WeatherAiModelChoice::GEMINI_FLASH) {
             $timeout = max(60, (int) config('services.gemini.chat_timeout', 900));
-            // Таймаут из .env GEMINI_CHAT_TIMEOUT (секунды)
 
-            return $this->gemini->chat($material, $instruction, $timeout);
-            // material + instruction → generativelanguage.googleapis.com, ключи round-robin
+            return [
+                'text' => $this->gemini->chat($material, $instruction, $timeout),
+                'http_status' => $this->gemini->lastHttpStatus(),
+            ];
         }
 
         if ($modelKey === WeatherAiModelChoice::GEMINI_PRO) {
             $timeout = max(60, (int) config('services.gemini_pro.chat_timeout', 1800));
             $maxOutputTokens = (int) config('services.gemini_pro.max_output_tokens', 65536);
-            // Лимит длины ответа Pro
 
-            return $this->geminiPro->chat($material, $instruction, $timeout, [
-                'maxOutputTokens' => max(8192, $maxOutputTokens),
-            ]);
-            // Отдельный ключ GEMINI_PRO_API_KEY
+            return [
+                'text' => $this->geminiPro->chat($material, $instruction, $timeout, [
+                    'maxOutputTokens' => max(8192, $maxOutputTokens),
+                ]),
+                'http_status' => $this->geminiPro->lastHttpStatus(),
+            ];
         }
 
         if (WeatherAiModelChoice::isOpenAi($modelKey)) {
             $openAiModel = WeatherAiModelChoice::openAiModelId($modelKey);
-            // gpt-4o-mini, gpt-4o, gpt-5.4 — по ключу из админки
 
-            return $this->openAi->askOpenAiWithModel(
-                $instruction,
-                // Сначала инструкция (промт)
-                $material,
-                // Потом исходный текст
-                $openAiModel,
-                'WeatherAi:'.$modelKey
-                // Метка для логов OpenAI
-            );
+            return [
+                'text' => $this->openAi->askOpenAiWithModel(
+                    $instruction,
+                    $material,
+                    $openAiModel,
+                    'WeatherAi:'.$modelKey
+                ),
+                'http_status' => null,
+            ];
         }
 
         throw new RuntimeException('Неизвестная модель: '.$modelKey);
-        // Ключ не из списка WeatherAiModelChoice
+    }
+
+    private function isGeminiModel(string $modelKey): bool
+    {
+        return in_array($modelKey, [
+            WeatherAiModelChoice::GEMINI_FLASH,
+            WeatherAiModelChoice::GEMINI_PRO,
+        ], true);
+    }
+
+    private function shouldFallbackToOpenAiMini(?string $answer, ?int $httpStatus): bool
+    {
+        if ($answer !== null && trim($answer) !== '') {
+            return false;
+        }
+
+        if ($httpStatus === null) {
+            return true;
+        }
+
+        return $httpStatus >= 500 && $httpStatus <= 503;
     }
 }

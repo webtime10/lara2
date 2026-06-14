@@ -231,6 +231,18 @@
                                     <p>Weather</p>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.prompts-wp.budget') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Budget</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget-calculator.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Budget калькулятор</p>
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     <li class="nav-item">
