@@ -65,6 +65,11 @@ return [
     /*
     | Ключи входящих webhook от WP-плагинов (заголовок X-Plugin-Api-Key).
     */
+    'dataforseo' => [
+        'login' => env('DATAFORSEO_LOGIN'),
+        'password' => env('DATAFORSEO_PASSWORD'),
+    ],
+
     'plugins' => [
         'default_api_key' => env('PLUGIN_API_KEY', env('WORDPRESS_WEBHOOK_SECRET', '')),
         'weather' => [
@@ -77,7 +82,7 @@ return [
         'budget' => [
             'api_key' => env('PLUGIN_BUDGET_API_KEY', env('PLUGIN_API_KEY', env('WORDPRESS_WEBHOOK_SECRET', ''))),
             'cache' => [
-                'enabled' => filter_var(env('BUDGET_CACHE_ENABLED', true), FILTER_VALIDATE_BOOL),
+                'enabled' => filter_var(env('BUDGET_CACHE_ENABLED', false), FILTER_VALIDATE_BOOL),
                 'ttl_hours' => (int) env('BUDGET_CACHE_TTL_HOURS', 48),
             ],
         ],

@@ -50,6 +50,217 @@
 
                             <hr>
 
+                            <h5 class="mb-3">Промты для питания</h5>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="korzina_magazina">корзина_магазина</label>
+                                        <textarea
+                                            id="korzina_magazina"
+                                            name="korzina_magazina"
+                                            class="form-control food-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для продуктовой корзины..."
+                                        >{{ old('korzina_magazina', $groceryBasketPrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>korzina_magazina</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cafe_prompt">Кафе</label>
+                                        <textarea
+                                            id="cafe_prompt"
+                                            name="cafe_prompt"
+                                            class="form-control food-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для кафе..."
+                                        >{{ old('cafe_prompt', $cafePrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>cafe_prompt</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="restaurants_prompt">Рестораны</label>
+                                        <textarea
+                                            id="restaurants_prompt"
+                                            name="restaurants_prompt"
+                                            class="form-control food-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для ресторанов..."
+                                        >{{ old('restaurants_prompt', $restaurantsPrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>restaurants_prompt</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <h5 class="mb-3">Промты для аренды авто</h5>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="car_economy_prompt">Эконом</label>
+                                        <textarea
+                                            id="car_economy_prompt"
+                                            name="car_economy_prompt"
+                                            class="form-control car-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для аренды авто эконом-класса..."
+                                        >{{ old('car_economy_prompt', $carEconomyPrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>car_economy_prompt</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="car_medium_prompt">Среднее</label>
+                                        <textarea
+                                            id="car_medium_prompt"
+                                            name="car_medium_prompt"
+                                            class="form-control car-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для аренды авто среднего класса..."
+                                        >{{ old('car_medium_prompt', $carMediumPrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>car_medium_prompt</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="car_luxury_prompt">Люкс</label>
+                                        <textarea
+                                            id="car_luxury_prompt"
+                                            name="car_luxury_prompt"
+                                            class="form-control car-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для аренды авто люкс-класса..."
+                                        >{{ old('car_luxury_prompt', $carLuxuryPrompt ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>car_luxury_prompt</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <h5 class="mb-3">Корректировка total по приоритету бюджета</h5>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="budget_priority_strict_percent">Бюджет важнее всего</label>
+                                        <input
+                                            type="text"
+                                            id="budget_priority_strict_percent"
+                                            name="budget_priority_strict_percent"
+                                            class="form-control priority-adjustment-field"
+                                            value="{{ old('budget_priority_strict_percent', $budgetPriorityStrictPercent ?? '-20%') }}"
+                                            placeholder="-20%"
+                                        >
+                                        <small class="form-text text-muted">
+                                            Для <code>budzet_vashnee_vsego</code>. Можно писать <code>-20%</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="budget_priority_balance_percent">Баланс бюджета и отдыха</label>
+                                        <input
+                                            type="text"
+                                            id="budget_priority_balance_percent"
+                                            name="budget_priority_balance_percent"
+                                            class="form-control priority-adjustment-field"
+                                            value="{{ old('budget_priority_balance_percent', $budgetPriorityBalancePercent ?? '0') }}"
+                                            placeholder="0"
+                                        >
+                                        <small class="form-text text-muted">
+                                            Для <code>bydget_vasgen</code>. Можно писать <code>0</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="budget_priority_relax_percent">Главное хорошо отдохнуть</label>
+                                        <input
+                                            type="text"
+                                            id="budget_priority_relax_percent"
+                                            name="budget_priority_relax_percent"
+                                            class="form-control priority-adjustment-field"
+                                            value="{{ old('budget_priority_relax_percent', $budgetPriorityRelaxPercent ?? '+20%') }}"
+                                            placeholder="+20%"
+                                        >
+                                        <small class="form-text text-muted">
+                                            Для <code>budget_ne_vagen</code>. Можно писать <code>+20%</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <h5 class="mb-3">Промты для развлечений</h5>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="entertainment_prompt_daily">Одно развлечение в день</label>
+                                        <textarea
+                                            id="entertainment_prompt_daily"
+                                            name="entertainment_prompt_daily"
+                                            class="form-control entertainment-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для варианта: одно развлечение в день..."
+                                        >{{ old('entertainment_prompt_daily', $entertainmentPromptDaily ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_daily</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="entertainment_prompt_every_two_days">Одно развлечение в 2 дня</label>
+                                        <textarea
+                                            id="entertainment_prompt_every_two_days"
+                                            name="entertainment_prompt_every_two_days"
+                                            class="form-control entertainment-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для варианта: одно развлечение в 2 дня..."
+                                        >{{ old('entertainment_prompt_every_two_days', $entertainmentPromptEveryTwoDays ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_every_two_days</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="entertainment_prompt_every_three_days">Одно развлечение в 3 дня</label>
+                                        <textarea
+                                            id="entertainment_prompt_every_three_days"
+                                            name="entertainment_prompt_every_three_days"
+                                            class="form-control entertainment-prompt-textarea"
+                                            rows="10"
+                                            placeholder="Промт для варианта: одно развлечение в 3 дня..."
+                                        >{{ old('entertainment_prompt_every_three_days', $entertainmentPromptEveryThreeDays ?? '') }}</textarea>
+                                        <small class="form-text text-muted">
+                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_every_three_days</code>.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
                             <h5 class="mb-3">Главный промт по языкам</h5>
 
                             <ul class="nav nav-tabs" role="tablist">
@@ -114,6 +325,26 @@ document.addEventListener('DOMContentLoaded', function () {
         if (modelEl) {
             payload.budget_ai_model = modelEl.value;
         }
+        document.querySelectorAll('.entertainment-prompt-textarea').forEach(function (el) {
+            if (el.name) {
+                payload[el.name] = el.value;
+            }
+        });
+        document.querySelectorAll('.food-prompt-textarea').forEach(function (el) {
+            if (el.name) {
+                payload[el.name] = el.value;
+            }
+        });
+        document.querySelectorAll('.car-prompt-textarea').forEach(function (el) {
+            if (el.name) {
+                payload[el.name] = el.value;
+            }
+        });
+        document.querySelectorAll('.priority-adjustment-field').forEach(function (el) {
+            if (el.name) {
+                payload[el.name] = el.value;
+            }
+        });
         textareas.forEach(function (el) {
             if (el.name) {
                 payload[el.name] = el.value;
@@ -143,6 +374,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.prompts && typeof data.prompts === 'object') {
                 langCodes.forEach(function (code) {
                     const key = 'glavnyy_prompt_' + code;
+                    const el = document.getElementById(key);
+                    if (el && typeof data.prompts[key] === 'string') {
+                        el.value = data.prompts[key];
+                    }
+                });
+                [
+                    'korzina_magazina',
+                    'cafe_prompt',
+                    'restaurants_prompt',
+                    'car_economy_prompt',
+                    'car_medium_prompt',
+                    'car_luxury_prompt',
+                    'budget_priority_strict_percent',
+                    'budget_priority_balance_percent',
+                    'budget_priority_relax_percent',
+                    'entertainment_prompt_daily',
+                    'entertainment_prompt_every_two_days',
+                    'entertainment_prompt_every_three_days'
+                ].forEach(function (key) {
                     const el = document.getElementById(key);
                     if (el && typeof data.prompts[key] === 'string') {
                         el.value = data.prompts[key];

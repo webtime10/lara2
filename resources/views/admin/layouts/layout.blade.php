@@ -218,6 +218,53 @@
                     </li>
                     <li class="nav-item has-treeview">
                         <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-wallet"></i>
+                            <p>
+                                Бюджет
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget-calculator.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Калькулятор</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.hotels.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Отели</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.apartments.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Апартаменты</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.entertainments.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Развлечения</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-sources.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Питание</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-imports.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Импорт питания</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-file-alt"></i>
                             <p>
                                 Промты WP
@@ -237,10 +284,45 @@
                                     <p>Budget</p>
                                 </a>
                             </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-treeview">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-vial"></i>
+                            <p>
+                                Тест
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
                             <li class="nav-item">
-                                <a href="{{ route('admin.budget-calculator.index') }}" class="nav-link">
+                                <a href="{{ route('admin.test.zurich.hotels') }}" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Budget калькулятор</p>
+                                    <p>Отели Цюриха</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.test.zurich.apartments') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Апартаменты Цюриха</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.test.zurich.entertainment') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Развлечения Цюриха</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.test.zurich.restaurants') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Рестораны Цюриха</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.test.zurich.places') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Places Цюрих (сырые)</p>
                                 </a>
                             </li>
                         </ul>
