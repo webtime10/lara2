@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BudgetPromt;
 use App\Models\QuizAnswer;
 use App\Models\SwissRegion;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -81,6 +82,16 @@ class EntertainmentGeminiService
             throw new RuntimeException('Не удалось подготовить JSON развлечений для Gemini.');
         }
 
+        $cacheKey = 'budget_entertainment:'.sha1($promptName.'|'.$prompt.'|'.$material);
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && isset($cached['amount'])) {
+            return [
+                'payload' => $payload,
+                'answer' => 'Cached entertainment amount: '.$cached['amount'],
+                'amount' => (float) $cached['amount'],
+            ];
+        }
+
         Log::info('[entertainment:gemini] request', [
             'region_id' => $region->id,
             'region' => $region->slug,
@@ -129,6 +140,8 @@ class EntertainmentGeminiService
 
             $amount = $this->fallbackAmount($entertainmentLevel, $extraPayload);
         }
+
+        Cache::put($cacheKey, ['amount' => $amount], now()->addDays(20));
 
         return [
             'payload' => $payload,

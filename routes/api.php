@@ -16,4 +16,8 @@ Route::prefix('plugins')->group(function () {
     Route::post('budget', [BudgetController::class, 'store'])
         ->middleware('plugin.api:budget')
         ->name('api.plugins.budget.store');
+
+    Route::get('budget/status/{quizAnswerId}', [BudgetController::class, 'status'])
+        ->middleware('plugin.api:budget')
+        ->name('api.plugins.budget.status');
 });

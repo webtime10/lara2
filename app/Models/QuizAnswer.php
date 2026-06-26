@@ -39,6 +39,10 @@ class QuizAnswer extends Model
         'budget_base_total',
         'base_total',
         'budget_priority_adjustment_total',
+        'calculation_status',
+        'calculation_error',
+        'calculation_started_at',
+        'calculation_completed_at',
         'budget_per_person',
         'budget_summary',
         'budget_rows',
@@ -58,5 +62,7 @@ class QuizAnswer extends Model
         'total' => 'decimal:2',
         'total_days' => 'integer',
         'ai_ok' => 'boolean',
+        'calculation_started_at' => 'datetime',
+        'calculation_completed_at' => 'datetime',
     ];
 }

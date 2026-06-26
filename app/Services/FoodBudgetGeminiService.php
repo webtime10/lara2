@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BudgetPromt;
 use App\Models\QuizAnswer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class FoodBudgetGeminiService
@@ -50,6 +51,17 @@ class FoodBudgetGeminiService
             ];
         }
 
+        $cacheKey = 'budget_food:'.sha1($promptName.'|'.$prompt.'|'.$material);
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && isset($cached['amount'])) {
+            return [
+                'prompt_name' => $promptName,
+                'payload' => $payload,
+                'answer' => 'Cached food amount: '.$cached['amount'],
+                'amount' => (float) $cached['amount'],
+            ];
+        }
+
         Log::info('[food:gemini] request', [
             'quiz_answer_id' => $answer->id,
             'prompt_name' => $promptName,
@@ -92,6 +104,8 @@ class FoodBudgetGeminiService
             'raw_answer' => $rawAnswer,
             'parsed_amount' => $amount,
         ]);
+
+        Cache::put($cacheKey, ['amount' => $amount], now()->addDays(20));
 
         return [
             'prompt_name' => $promptName,

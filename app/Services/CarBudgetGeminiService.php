@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BudgetPromt;
 use App\Models\QuizAnswer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class CarBudgetGeminiService
@@ -59,6 +60,17 @@ class CarBudgetGeminiService
             ];
         }
 
+        $cacheKey = 'budget_car:'.sha1($promptName.'|'.$prompt.'|'.$material);
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && isset($cached['amount'])) {
+            return [
+                'prompt_name' => $promptName,
+                'payload' => $payload,
+                'answer' => 'Cached car amount: '.$cached['amount'],
+                'amount' => (float) $cached['amount'],
+            ];
+        }
+
         Log::info('[car:gemini] request', [
             'quiz_answer_id' => $answer->id,
             'prompt_name' => $promptName,
@@ -94,6 +106,8 @@ class CarBudgetGeminiService
                 'fallback_amount' => $amount,
             ]);
         }
+
+        Cache::put($cacheKey, ['amount' => $amount], now()->addDays(20));
 
         return [
             'prompt_name' => $promptName,
