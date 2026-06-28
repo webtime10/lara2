@@ -21,6 +21,8 @@ class EntertainmentGeminiService
 
     public function __construct(
         private readonly GeminiService $gemini,
+        private readonly GeminiProService $geminiPro,
+        private readonly OpenAiService $openAi,
         private readonly SwissEntertainmentsService $entertainments,
     ) {}
 
@@ -102,7 +104,8 @@ class EntertainmentGeminiService
             'payload' => $payload,
         ]);
 
-        $answer = $this->gemini->chat($material, $prompt, $this->gemini->defaultChatTimeout());
+        $aiAnswer = $this->moneyAnswerFromModelChain($material, $prompt);
+        $answer = $aiAnswer['answer'];
         if ($answer === null || trim($answer) === '') {
             Log::warning('[entertainment:gemini] empty_response', [
                 'region_id' => $region->id,
@@ -120,7 +123,7 @@ class EntertainmentGeminiService
             ];
         }
 
-        $amount = $this->moneyToFloat($answer);
+        $amount = $aiAnswer['amount'];
         Log::info('[entertainment:gemini] response', [
             'region_id' => $region->id,
             'region' => $region->slug,
@@ -128,6 +131,7 @@ class EntertainmentGeminiService
             'http_status' => $this->gemini->lastHttpStatus(),
             'raw_answer' => $answer,
             'parsed_amount' => $amount,
+            'model' => $aiAnswer['model'],
         ]);
 
         if ($amount === null) {
@@ -147,6 +151,65 @@ class EntertainmentGeminiService
             'payload' => $payload,
             'answer' => $answer,
             'amount' => $amount,
+        ];
+    }
+
+    /** @return array{answer: ?string, amount: ?float, model: string} */
+    private function moneyAnswerFromModelChain(string $material, string $prompt): array
+    {
+        $lastAnswer = null;
+        $lastModel = FoodSourceGeminiPriceService::MODEL_GEMINI_FREE;
+
+        foreach ($this->fallbackChain() as $model) {
+            $lastModel = $model;
+            try {
+                $answer = $this->askModel($model, $material, $prompt);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($answer === null || trim($answer) === '') {
+                continue;
+            }
+
+            $lastAnswer = $answer;
+            $amount = $this->moneyToFloat($answer);
+            if ($amount !== null) {
+                return ['answer' => $answer, 'amount' => $amount, 'model' => $model];
+            }
+        }
+
+        return ['answer' => $lastAnswer, 'amount' => null, 'model' => $lastModel];
+    }
+
+    private function askModel(string $model, string $material, string $prompt): ?string
+    {
+        return match ($model) {
+            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID => $this->geminiPro->chat(
+                $material,
+                $prompt,
+                max(60, (int) config('services.gemini_pro.chat_timeout', 1800)),
+                [
+                    'maxOutputTokens' => max(1024, (int) config('services.gemini_pro.max_output_tokens', 65536)),
+                ],
+            ),
+            FoodSourceGeminiPriceService::MODEL_OPENAI => $this->openAi->askOpenAiWithModel(
+                $prompt,
+                $material,
+                trim((string) config('services.openai.model', 'gpt-4o-mini')) ?: 'gpt-4o-mini',
+                'EntertainmentBudget:openai',
+            ),
+            default => $this->gemini->chat($material, $prompt, $this->gemini->defaultChatTimeout()),
+        };
+    }
+
+    /** @return list<string> */
+    private function fallbackChain(): array
+    {
+        return [
+            FoodSourceGeminiPriceService::MODEL_GEMINI_FREE,
+            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID,
+            FoodSourceGeminiPriceService::MODEL_OPENAI,
         ];
     }
 

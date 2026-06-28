@@ -49,65 +49,77 @@ class BudgetAiService
         $modelKey = $this->loadSelectedModelKey();
 
         try {
-            $request = $this->requestFromModel($modelKey, $material, $instruction);
-            $answer = $request['text'];
-            $httpStatus = $request['http_status'];
-
-            if ($this->isGeminiModel($modelKey) && $this->shouldFallbackToOpenAiMini($answer, $httpStatus)) {
-                $fallbackKey = BudgetAiModelChoice::OPENAI_GPT_4O_MINI;
-                Log::warning('[plugin:budget] Gemini недоступен, fallback на OpenAI Mini', [
-                    'primary_model' => $modelKey,
-                    'http_status' => $httpStatus,
-                    'fallback_model' => $fallbackKey,
-                    'language' => $language,
-                ]);
-                $fallbackRequest = $this->requestFromModel($fallbackKey, $material, $instruction);
-                $answer = $fallbackRequest['text'];
-                $modelKey = $fallbackKey;
-            }
+            $result = $this->budgetFromModelChain($modelKey, $material, $instruction, $language);
         } catch (RuntimeException $e) {
             Log::error('[plugin:budget] AI', ['error' => $e->getMessage(), 'model' => $modelKey]);
 
             return ['ok' => false, 'message' => $e->getMessage(), 'model' => $modelKey, 'language' => $language];
         }
 
-        if ($answer === null || trim($answer) === '') {
-            return [
-                'ok' => false,
-                'message' => 'Модель не вернула текст. Проверьте ключи API и логи Laravel.',
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        $parsed = $this->parseBudgetJson($answer);
-        if ($parsed === null) {
-            return [
-                'ok' => false,
-                'message' => 'Ответ модели не является валидным JSON. Проверьте промт (только JSON, без Markdown).',
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        if ($parsed['error'] !== null) {
-            return [
-                'ok' => false,
-                'message' => $parsed['error'],
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        $budget = $parsed['budget'];
-
         return [
             'ok' => true,
-            'message' => $budget['summary'],
-            'budget' => $budget,
-            'model' => $modelKey,
+            'message' => $result['budget']['summary'],
+            'budget' => $result['budget'],
+            'model' => $result['model'],
             'language' => $language,
         ];
+    }
+
+    /**
+     * @return array{budget: array{total: string, per_person: string, summary: string, rows: list<array{label: string, price: string}>}, model: string}
+     */
+    private function budgetFromModelChain(string $selectedModel, string $material, string $instruction, string $language): array
+    {
+        $lastMessage = null;
+
+        foreach ($this->fallbackModelChain($selectedModel) as $modelKey) {
+            try {
+                $request = $this->requestFromModel($modelKey, $material, $instruction);
+            } catch (RuntimeException $e) {
+                $lastMessage = $e->getMessage();
+                Log::warning('[plugin:budget] model_exception', [
+                    'model' => $modelKey,
+                    'error' => $e->getMessage(),
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            $answer = $request['text'];
+            if ($answer === null || trim($answer) === '') {
+                $lastMessage = 'Модель '.$modelKey.' не вернула текст.';
+                Log::warning('[plugin:budget] empty_response', [
+                    'model' => $modelKey,
+                    'http_status' => $request['http_status'],
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            $parsed = $this->parseBudgetJson($answer);
+            if ($parsed === null) {
+                $lastMessage = 'Модель '.$modelKey.' вернула невалидный JSON.';
+                Log::warning('[plugin:budget] invalid_json', [
+                    'model' => $modelKey,
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            if ($parsed['error'] !== null) {
+                $lastMessage = $parsed['error'];
+                Log::warning('[plugin:budget] invalid_budget', [
+                    'model' => $modelKey,
+                    'message' => $parsed['error'],
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            return ['budget' => $parsed['budget'], 'model' => $modelKey];
+        }
+
+        throw new RuntimeException($lastMessage ?: 'Все AI-модели не смогли рассчитать бюджет.');
     }
 
     private function loadMainPrompt(string $language): string
@@ -253,6 +265,16 @@ TXT;
             'budget' => $budget,
             'error' => null,
         ];
+    }
+
+    /** @return list<string> */
+    private function fallbackModelChain(string $selectedModel): array
+    {
+        return array_values(array_unique([
+            $selectedModel,
+            BudgetAiModelChoice::GEMINI_PRO,
+            BudgetAiModelChoice::OPENAI_GPT_4O_MINI,
+        ]));
     }
 
     /**

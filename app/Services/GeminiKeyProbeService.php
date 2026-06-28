@@ -22,9 +22,9 @@ class GeminiKeyProbeService
      *     answer?: string
      * }
      */
-    public function probeKey(string $apiKey, int $index = 1): array
+    public function probeKey(string $apiKey, int $index = 1, ?string $model = null): array
     {
-        $model = trim((string) config('services.gemini.model', 'gemini-2.5-flash'));
+        $model = trim((string) ($model ?? config('services.gemini.model', 'gemini-2.5-flash')));
         if ($model === '') {
             $model = 'gemini-2.5-flash';
         }
@@ -65,6 +65,37 @@ class GeminiKeyProbeService
         }
 
         return $out;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function probeConfiguredProKey(): array
+    {
+        $keys = GeminiApiKeys::fromConfig('services.gemini_pro.key');
+        if ($keys === []) {
+            return [
+                'index' => 1,
+                'mask' => '—',
+                'ok' => false,
+                'status' => null,
+                'model' => (string) config('services.gemini_pro.model', 'gemini-2.5-pro'),
+                'message' => 'GEMINI_PRO_API_KEY пуст в .env',
+                'balance' => null,
+                'balance_message' => 'Баланс Gemini API через GEMINI_PRO_API_KEY получить нельзя: у Google нет такого billing endpoint для Generative Language API key.',
+            ];
+        }
+
+        $result = $this->probeKey(
+            $keys[0],
+            1,
+            (string) config('services.gemini_pro.model', 'gemini-2.5-pro')
+        );
+
+        $result['balance'] = null;
+        $result['balance_message'] = 'Баланс Gemini API через GEMINI_PRO_API_KEY получить нельзя: Google показывает расходы в Cloud Console / AI Studio Billing, но не отдаёт остаток денег этим API key.';
+
+        return $result;
     }
 
     /**

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\BudgetPromt;
+use App\Models\CarRentalPrice;
 use App\Models\QuizAnswer;
+use App\Models\SwissRegion;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +19,8 @@ class CarBudgetGeminiService
 
     public function __construct(
         private readonly GeminiService $gemini,
+        private readonly GeminiProService $geminiPro,
+        private readonly OpenAiService $openAi,
     ) {}
 
     /**
@@ -30,6 +34,16 @@ class CarBudgetGeminiService
                 'payload' => $this->payloadForAnswer($answer),
                 'answer' => 'No car rental selected',
                 'amount' => 0.0,
+            ];
+        }
+
+        $storedAmount = $this->storedAmountForAnswer($answer);
+        if ($storedAmount !== null) {
+            return [
+                'prompt_name' => '',
+                'payload' => $this->payloadForAnswer($answer),
+                'answer' => 'Stored car rental amount: '.$storedAmount,
+                'amount' => $storedAmount,
             ];
         }
 
@@ -78,7 +92,8 @@ class CarBudgetGeminiService
             'payload' => $payload,
         ]);
 
-        $rawAnswer = $this->gemini->chat($material, $prompt, $this->gemini->defaultChatTimeout());
+        $aiAnswer = $this->moneyAnswerFromModelChain($material, $prompt);
+        $rawAnswer = $aiAnswer['answer'];
         if ($rawAnswer === null || trim($rawAnswer) === '') {
             $amount = $this->fallbackAmountForAnswer($answer);
             Log::warning('[car:gemini] empty_response', [
@@ -96,7 +111,7 @@ class CarBudgetGeminiService
             ];
         }
 
-        $amount = $this->moneyToFloat($rawAnswer);
+        $amount = $aiAnswer['amount'];
         if ($amount === null) {
             $amount = $this->fallbackAmountForAnswer($answer);
             Log::warning('[car:gemini] amount_parse_failed', [
@@ -117,10 +132,74 @@ class CarBudgetGeminiService
         ];
     }
 
+    /** @return array{answer: ?string, amount: ?float, model: string} */
+    private function moneyAnswerFromModelChain(string $material, string $prompt): array
+    {
+        $lastAnswer = null;
+        $lastModel = FoodSourceGeminiPriceService::MODEL_GEMINI_FREE;
+
+        foreach ($this->fallbackChain() as $model) {
+            $lastModel = $model;
+            try {
+                $answer = $this->askModel($model, $material, $prompt);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if ($answer === null || trim($answer) === '') {
+                continue;
+            }
+
+            $lastAnswer = $answer;
+            $amount = $this->moneyToFloat($answer);
+            if ($amount !== null) {
+                return ['answer' => $answer, 'amount' => $amount, 'model' => $model];
+            }
+        }
+
+        return ['answer' => $lastAnswer, 'amount' => null, 'model' => $lastModel];
+    }
+
+    private function askModel(string $model, string $material, string $prompt): ?string
+    {
+        return match ($model) {
+            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID => $this->geminiPro->chat(
+                $material,
+                $prompt,
+                max(60, (int) config('services.gemini_pro.chat_timeout', 1800)),
+                [
+                    'maxOutputTokens' => max(1024, (int) config('services.gemini_pro.max_output_tokens', 65536)),
+                ],
+            ),
+            FoodSourceGeminiPriceService::MODEL_OPENAI => $this->openAi->askOpenAiWithModel(
+                $prompt,
+                $material,
+                trim((string) config('services.openai.model', 'gpt-4o-mini')) ?: 'gpt-4o-mini',
+                'CarBudget:openai',
+            ),
+            default => $this->gemini->chat($material, $prompt, $this->gemini->defaultChatTimeout()),
+        };
+    }
+
+    /** @return list<string> */
+    private function fallbackChain(): array
+    {
+        return [
+            FoodSourceGeminiPriceService::MODEL_GEMINI_FREE,
+            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID,
+            FoodSourceGeminiPriceService::MODEL_OPENAI,
+        ];
+    }
+
     public function fallbackAmountForAnswer(QuizAnswer $answer): float
     {
         if (! $this->needsCar($answer)) {
             return 0.0;
+        }
+
+        $storedAmount = $this->storedAmountForAnswer($answer);
+        if ($storedAmount !== null) {
+            return $storedAmount;
         }
 
         $days = max(1, (int) ($answer->total_days ?: 1));
@@ -157,6 +236,51 @@ class CarBudgetGeminiService
             self::LUXURY_PROMPT => 180.0,
             default => 95.0,
         };
+    }
+
+    private function storedAmountForAnswer(QuizAnswer $answer): ?float
+    {
+        $region = $this->regionForAnswer($answer);
+        $carClass = $this->carClassKey($answer->car_class);
+        if (! $region || $carClass === null) {
+            return null;
+        }
+
+        $price = CarRentalPrice::query()
+            ->where('region_id', $region->id)
+            ->where('car_class', $carClass)
+            ->first();
+
+        if (! $price || $price->daily_price === null) {
+            return null;
+        }
+
+        $days = max(1, (int) ($answer->total_days ?: 1));
+
+        return round($days * (float) $price->daily_price, 2);
+    }
+
+    private function carClassKey(?string $carClass): ?string
+    {
+        return match ($this->promptNameForCarClass($carClass)) {
+            self::ECONOMY_PROMPT => CarRentalPrice::CLASS_ECONOMY,
+            self::MEDIUM_PROMPT => CarRentalPrice::CLASS_MEDIUM,
+            self::LUXURY_PROMPT => CarRentalPrice::CLASS_LUXURY,
+            default => null,
+        };
+    }
+
+    private function regionForAnswer(QuizAnswer $answer): ?SwissRegion
+    {
+        $region = trim((string) $answer->region);
+        if ($region === '') {
+            return null;
+        }
+
+        return SwissRegion::query()
+            ->where('slug', $region)
+            ->orWhere('label', $region)
+            ->first();
     }
 
     /**

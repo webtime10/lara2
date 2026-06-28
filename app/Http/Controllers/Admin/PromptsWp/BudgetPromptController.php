@@ -22,8 +22,6 @@ class BudgetPromptController extends Controller
 
     private const ENTERTAINMENT_PROMPT_EVERY_THREE_DAYS_NAME = 'entertainment_prompt_every_three_days';
 
-    private const GROCERY_BASKET_PROMPT_NAME = 'korzina_magazina';
-
     private const CAFE_PROMPT_NAME = 'cafe_prompt';
 
     private const RESTAURANTS_PROMPT_NAME = 'restaurants_prompt';
@@ -64,7 +62,6 @@ class BudgetPromptController extends Controller
             'entertainmentPromptDaily' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_DAILY_NAME),
             'entertainmentPromptEveryTwoDays' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_EVERY_TWO_DAYS_NAME),
             'entertainmentPromptEveryThreeDays' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_EVERY_THREE_DAYS_NAME),
-            'groceryBasketPrompt' => BudgetPromt::where('name', self::GROCERY_BASKET_PROMPT_NAME)->value('content') ?? '',
             'cafePrompt' => BudgetPromt::where('name', self::CAFE_PROMPT_NAME)->value('content') ?? '',
             'restaurantsPrompt' => BudgetPromt::where('name', self::RESTAURANTS_PROMPT_NAME)->value('content') ?? '',
             'carEconomyPrompt' => BudgetPromt::where('name', self::CAR_ECONOMY_PROMPT_NAME)->value('content') ?? '',
@@ -89,7 +86,6 @@ class BudgetPromptController extends Controller
             'entertainment_prompt_daily' => ['nullable', 'string'],
             'entertainment_prompt_every_two_days' => ['nullable', 'string'],
             'entertainment_prompt_every_three_days' => ['nullable', 'string'],
-            'korzina_magazina' => ['nullable', 'string'],
             'cafe_prompt' => ['nullable', 'string'],
             'restaurants_prompt' => ['nullable', 'string'],
             'car_economy_prompt' => ['nullable', 'string'],
@@ -140,13 +136,6 @@ class BudgetPromptController extends Controller
             ['content' => $entertainmentPromptEveryThreeDays]
         );
         $saved['entertainment_prompt_every_three_days'] = $entertainmentPromptEveryThreeDays;
-
-        $groceryBasketPrompt = $validated['korzina_magazina'] ?? '';
-        BudgetPromt::updateOrCreate(
-            ['name' => self::GROCERY_BASKET_PROMPT_NAME],
-            ['content' => $groceryBasketPrompt]
-        );
-        $saved['korzina_magazina'] = $groceryBasketPrompt;
 
         $cafePrompt = $validated['cafe_prompt'] ?? '';
         BudgetPromt::updateOrCreate(

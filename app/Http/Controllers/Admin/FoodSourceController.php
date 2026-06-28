@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\FoodSource;
 use App\Models\SwissRegion;
-use App\Services\FoodSourceAiService;
+use App\Services\FoodSourceGeminiPriceService;
+use App\Support\SyncErrorMessage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,32 +17,43 @@ class FoodSourceController extends Controller
 {
     public function index(Request $request): View
     {
-        $pageTitle = 'Бюджет — Источники питания';
+        $pageTitle = 'Бюджет — Цены питания';
         $regions = $this->regions();
         $foodTypes = FoodSource::typeLabels();
 
-        $query = FoodSource::query()->with('region')->latest('id');
-
+        $displayRegions = $regions;
         if ($request->filled('region_id')) {
-            $query->where('region_id', (int) $request->input('region_id'));
+            $displayRegions = $regions->where('id', (int) $request->input('region_id'))->values();
         }
 
-        if ($request->filled('food_type')) {
-            $query->where('food_type', (string) $request->input('food_type'));
-        }
+        $sourcesByRegion = FoodSource::query()
+            ->where('food_type', FoodSource::TYPE_HOME_COOKING)
+            ->whereIn('region_id', $displayRegions->pluck('id'))
+            ->orderBy('id')
+            ->get()
+            ->unique('region_id')
+            ->keyBy('region_id');
 
-        $sources = $query->paginate(30)->withQueryString();
+        $foodRows = $displayRegions->map(fn (SwissRegion $region): array => [
+            'region' => $region,
+            'source' => $sourcesByRegion->get($region->id),
+        ]);
+        $aiModelLabels = FoodSourceGeminiPriceService::modelLabels();
+        $defaultAiModel = FoodSourceGeminiPriceService::MODEL_GEMINI_FREE;
 
-        return view('admin.food-sources.index', compact('pageTitle', 'sources', 'regions', 'foodTypes'));
+        return view('admin.food-sources.index', compact('pageTitle', 'foodRows', 'regions', 'foodTypes', 'aiModelLabels', 'defaultAiModel'));
     }
 
     public function create(): View
     {
         return view('admin.food-sources.create', [
-            'pageTitle' => 'Источник питания — создание',
+            'pageTitle' => 'Продуктовая корзина — создание',
             'regions' => $this->regions(),
             'foodTypes' => FoodSource::typeLabels(),
-            'source' => new FoodSource(['currency' => 'CHF']),
+            'source' => new FoodSource([
+                'currency' => 'CHF',
+                'food_type' => FoodSource::TYPE_HOME_COOKING,
+            ]),
             'priceFields' => FoodSource::allPriceFields(),
             'restaurantFields' => FoodSource::RESTAURANT_PRICE_FIELDS,
             'groceryFields' => FoodSource::GROCERY_PRICE_FIELDS,
@@ -60,7 +73,7 @@ class FoodSourceController extends Controller
     public function edit(FoodSource $foodSource): View
     {
         return view('admin.food-sources.edit', [
-            'pageTitle' => 'Источник питания — редактирование',
+            'pageTitle' => 'Продуктовая корзина — редактирование',
             'regions' => $this->regions(),
             'foodTypes' => FoodSource::typeLabels(),
             'source' => $foodSource,
@@ -87,14 +100,56 @@ class FoodSourceController extends Controller
         return redirect()->route('admin.food-sources.index')->with('success', 'Источник питания удалён');
     }
 
-    public function refreshAi(FoodSource $foodSource, FoodSourceAiService $ai): RedirectResponse
+    public function refreshAi(Request $request, FoodSource $foodSource, FoodSourceGeminiPriceService $gemini): RedirectResponse
     {
         try {
-            $ai->refreshPrices($foodSource);
+            $region = $foodSource->region;
+            if (! $region) {
+                return back()->with('error', 'Регион не найден');
+            }
 
-            return back()->with('success', 'Цены обновлены через ChatGPT');
+            $gemini->refreshRegion($region, $request->input('ai_model'));
+
+            return back()->with('success', 'Цены обновлены через Gemini');
         } catch (\Throwable $e) {
             return back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function refreshGeminiRegion(string $slug, Request $request, FoodSourceGeminiPriceService $gemini): JsonResponse|RedirectResponse
+    {
+        $region = SwissRegion::query()->where('slug', $slug)->first();
+        if (! $region) {
+            return response()->json(['ok' => false, 'message' => 'Регион не найден'], 404);
+        }
+
+        try {
+            $result = $gemini->refreshRegion($region, $request->input('ai_model'));
+            $source = $result['source'];
+            if (! $request->expectsJson()) {
+                return back()->with('success', 'Цены сохранены через выбранную модель: '.$region->label);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'slug' => $region->slug,
+                'label' => $region->label,
+                'model' => $result['model'],
+                'source_id' => $source->id,
+                'prices_count' => collect($result['prices'])->filter(fn ($value) => $value !== null)->count(),
+                'last_checked' => $source->last_checked?->format('d.m.Y H:i'),
+            ]);
+        } catch (\Throwable $e) {
+            if (! $request->expectsJson()) {
+                return back()->with('error', SyncErrorMessage::format($e));
+            }
+
+            return response()->json([
+                'ok' => false,
+                'slug' => $slug,
+                'label' => $region->label,
+                'message' => SyncErrorMessage::format($e),
+            ], 502);
         }
     }
 

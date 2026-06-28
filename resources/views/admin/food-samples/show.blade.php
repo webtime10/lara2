@@ -10,7 +10,7 @@
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.food-imports.index') }}">Импорт питания</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.food-imports.index') }}">Кафе и рестораны</a></li>
                         <li class="breadcrumb-item active">Выборка {{ $region->label }}</li>
                     </ol>
                 </div>
@@ -26,7 +26,7 @@
 
             <div class="mb-3">
                 <a href="{{ route('admin.food-imports.index') }}" class="btn btn-sm btn-secondary">← Все кантоны</a>
-                <a href="{{ route('admin.food-imports.show', $region->slug) }}" class="btn btn-sm btn-outline-secondary ml-2">Сырьё food_imports</a>
+                <a href="{{ route('admin.food-imports.show', $region->slug) }}" class="btn btn-sm btn-outline-secondary ml-2">Список кафе/ресторанов</a>
                 <form method="get" class="d-inline-block ml-2">
                     <select name="food_type" class="form-control form-control-sm d-inline-block" style="width: 190px;">
                         <option value="">Все типы</option>
@@ -44,7 +44,7 @@
             <div class="card card-outline card-success">
                 <div class="card-body">
                     <p class="text-muted">
-                        Это рабочая выборка для расчёта питания: TOP 10 cafe, TOP 10 restaurant,
+                        Это рабочая выборка кафе и ресторанов для расчёта питания: TOP 10 cafe, TOP 10 restaurant,
                         TOP 5 restaurant_candidate по <code>reviews_count</code> и <code>rating</code>.
                         Сетевые филиалы схлопываются до одного самого популярного заведения.
                     </p>

@@ -103,9 +103,9 @@ class FoodSource extends Model
     {
         return [
             self::TYPE_RESTAURANT => 'Ресторан',
-            self::TYPE_FINE_RESTAURANT => 'Фешенебельный ресторан',
+            self::TYPE_FINE_RESTAURANT => 'Дорогой ресторан',
             self::TYPE_CAFE => 'Кафе',
-            self::TYPE_HOME_COOKING => 'Домашнее питание',
+            self::TYPE_HOME_COOKING => 'Продуктовая корзина',
         ];
     }
 

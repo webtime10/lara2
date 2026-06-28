@@ -10,9 +10,11 @@ use App\Http\Controllers\Admin\BudgetCalculatorController;
 use App\Http\Controllers\Admin\BudgetApartmentsController;
 use App\Http\Controllers\Admin\BudgetEntertainmentsController;
 use App\Http\Controllers\Admin\BudgetHotelsController;
+use App\Http\Controllers\Admin\CarRentalPriceController;
 use App\Http\Controllers\Admin\FoodImportController;
 use App\Http\Controllers\Admin\FoodSampleController;
 use App\Http\Controllers\Admin\FoodSourceController;
+use App\Http\Controllers\Admin\FoodVisitPriceController;
 use App\Http\Controllers\Admin\PromptsWp\BudgetPromptController;
 use App\Http\Controllers\Admin\PromptsWp\WeatherPromptController;
 use App\Http\Controllers\Admin\ZurichApartmentsController;
@@ -43,9 +45,54 @@ Route::prefix('admin')
         
         // Главная страница админки
         Route::get('/', [MainController::class, 'index'])->name('index');
+        Route::get('api-check/openai', function () {
+            $apiKey = config('services.openai.key');
+            if (! $apiKey) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Нет подключения: OPENAI_API_KEY не задан.',
+                ], 500);
+            }
+
+            try {
+                $client = \OpenAI::client($apiKey);
+                $model = (string) config('services.openai.model', 'gpt-4o-mini');
+                $payload = [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'Ответь только OK'],
+                    ],
+                ];
+
+                if (preg_match('/^gpt-5/i', $model) === 1) {
+                    $payload['max_completion_tokens'] = 8;
+                } else {
+                    $payload['max_tokens'] = 8;
+                }
+
+                $client->chat()->create($payload);
+
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'OK, есть подключение OpenAI.',
+                ]);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (str_contains($msg, 'insufficient_quota')) {
+                    $msg = 'квота исчерпана — пополните счёт на platform.openai.com';
+                }
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Нет подключения OpenAI: '.$msg,
+                ], 500);
+            }
+        })->name('api-check.openai');
         Route::post('gemini-keys/test-all', [MainController::class, 'testAllGeminiKeys'])->name('gemini-keys.test-all');
         Route::post('gemini-keys/test-next', [MainController::class, 'testNextGeminiKey'])->name('gemini-keys.test-next');
         Route::post('gemini-keys/reset-rotation', [MainController::class, 'resetGeminiKeyRotation'])->name('gemini-keys.reset-rotation');
+        Route::post('gemini-pro-key/test', [MainController::class, 'testGeminiProKey'])->name('gemini-pro-key.test');
+        Route::post('openai-key/test', [MainController::class, 'testOpenAiKey'])->name('openai-key.test');
         Route::post('dataforseo/test', [MainController::class, 'testDataForSeo'])->name('dataforseo.test');
         Route::post('databases/test', [MainController::class, 'testDatabases'])->name('databases.test');
 
@@ -68,6 +115,9 @@ Route::prefix('admin')
 
         Route::get('budget-calculator', [BudgetCalculatorController::class, 'index'])->name('budget-calculator.index');
         Route::post('budget-calculator/bulk-delete', [BudgetCalculatorController::class, 'bulkDelete'])->name('budget-calculator.bulk-delete');
+        Route::get('car-rental-prices', [CarRentalPriceController::class, 'index'])->name('car-rental-prices.index');
+        Route::post('car-rental-prices/clear-all', [CarRentalPriceController::class, 'clearAll'])->name('car-rental-prices.clear-all');
+        Route::post('car-rental-prices/{slug}', [CarRentalPriceController::class, 'refresh'])->name('car-rental-prices.refresh');
 
         Route::prefix('budget/hotels')->name('budget.hotels.')->group(function () {
             Route::get('/', [BudgetHotelsController::class, 'index'])->name('index');
@@ -95,7 +145,13 @@ Route::prefix('admin')
 
         Route::post('food-sources/{food_source}/refresh-ai', [FoodSourceController::class, 'refreshAi'])
             ->name('food-sources.refresh-ai');
+        Route::post('food-sources/gemini/{slug}', [FoodSourceController::class, 'refreshGeminiRegion'])
+            ->name('food-sources.gemini');
         Route::resource('food-sources', FoodSourceController::class)->except(['show']);
+
+        Route::get('food-visit-prices/cafes', [FoodVisitPriceController::class, 'cafes'])->name('food-visit-prices.cafes');
+        Route::get('food-visit-prices/restaurants', [FoodVisitPriceController::class, 'restaurants'])->name('food-visit-prices.restaurants');
+        Route::post('food-visit-prices/{type}/{slug}', [FoodVisitPriceController::class, 'refresh'])->name('food-visit-prices.refresh');
 
         Route::prefix('food-imports')->name('food-imports.')->group(function () {
             Route::get('/', [FoodImportController::class, 'index'])->name('index');

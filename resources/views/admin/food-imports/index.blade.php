@@ -11,7 +11,7 @@
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
                         <li class="breadcrumb-item">Бюджет</li>
-                        <li class="breadcrumb-item active">Импорт питания</li>
+                        <li class="breadcrumb-item active">Кафе и рестораны</li>
                     </ol>
                 </div>
             </div>
@@ -23,7 +23,8 @@
             <div class="card card-outline card-primary">
                 <div class="card-body">
                     <p class="text-muted">
-                        Импорт сырья в <code>food_imports</code> выполняется отдельно по каждому кантону.
+                        Здесь собираются кафе и рестораны по каждому кантону.
+                        Эти данные потом передаются в Gemini для расчёта питания.
                         Ключевые слова: <code>{{ implode('</code>, <code>', $keywords) }}</code>.
                     </p>
 

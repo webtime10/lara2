@@ -18,7 +18,7 @@ class FoodImportController extends Controller
     public function index(FoodImportsService $imports): View
     {
         return view('admin.food-imports.index', [
-            'pageTitle' => 'Бюджет — Импорт питания',
+            'pageTitle' => 'Бюджет — Кафе и рестораны',
             'regions' => $imports->regions(),
             'keywords' => FoodImportsService::KEYWORDS,
         ]);
@@ -133,7 +133,7 @@ class FoodImportController extends Controller
         }
 
         return view('admin.food-imports.show', [
-            'pageTitle' => 'Импорт питания — '.$region->label,
+            'pageTitle' => 'Кафе и рестораны — '.$region->label,
             'region' => $region,
             'items' => $items,
             'keywords' => FoodImportsService::KEYWORDS,

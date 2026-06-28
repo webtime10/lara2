@@ -250,15 +250,33 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.car-rental-prices.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Цены авто</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.food-sources.index') }}" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Питание</p>
+                                    <p>Цены питания</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-visit-prices.cafes') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Цены кафе</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-visit-prices.restaurants') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Цены ресторанов</p>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a href="{{ route('admin.food-imports.index') }}" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Импорт питания</p>
+                                    <p>Кафе и рестораны</p>
                                 </a>
                             </li>
                         </ul>

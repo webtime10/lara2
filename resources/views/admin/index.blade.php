@@ -21,6 +21,11 @@
             <div class="card">
                 <div class="card-body">
                     <p class="mb-0">Добро пожаловать в админ-панель.</p>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary btn-sm mr-2 js-api-check" data-url="{{ route('admin.api-check.openai') }}">
+                            ОПН
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -110,11 +115,98 @@
                     @endif
                 </div>
             </div>
+
+            <div class="card card-outline card-warning">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">Gemini Pro API — проверка ключа</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2">
+                        Проверяется отдельный ключ <code>GEMINI_PRO_API_KEY</code>.
+                        Модель: <code>{{ $geminiProModel }}</code>.
+                    </p>
+
+                    @if (! $geminiProKeyConfigured)
+                        <div class="alert alert-warning mb-0">
+                            Ключ не найден. Задайте <code>GEMINI_PRO_API_KEY</code> в <code>.env</code>.
+                        </div>
+                    @else
+                        <p class="mb-2">Ключ в .env: <code>{{ $geminiProKeyMask }}</code></p>
+
+                        <button type="button" class="btn btn-warning mb-3" id="btnGeminiProTest">
+                            Джемени флеш 2.5 платный
+                        </button>
+
+                        <div id="geminiProAlert" class="alert d-none" role="alert"></div>
+                        <div id="geminiProResults"></div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="card card-outline card-dark">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">OpenAI / ChatGPT API — проверка ключа</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2">
+                        Проверяется <code>OPENAI_API_KEY</code> / <code>OPENAI_API_KEYS</code>.
+                        Основная модель: <code>{{ $openAiModel }}</code>.
+                        Модель классификации: <code>{{ $openAiExtractionModel }}</code>.
+                    </p>
+
+                    @if (! $openAiKeyConfigured)
+                        <div class="alert alert-warning mb-0">
+                            Ключ не найден. Задайте <code>OPENAI_API_KEY</code> или <code>OPENAI_API_KEYS</code> в <code>.env</code>.
+                        </div>
+                    @else
+                        <p class="mb-2">
+                            Найдено ключей: <strong>{{ $openAiKeyCount }}</strong>.
+                            Первый ключ: <code>{{ $openAiKeyMask }}</code>
+                        </p>
+
+                        <button type="button" class="btn btn-dark mb-3 js-api-check" data-url="{{ route('admin.api-check.openai') }}">
+                            Проверить OpenAI / ChatGPT
+                        </button>
+                    @endif
+                </div>
+            </div>
         </div>
     </section>
 @endsection
 
 @section('scripts')
+<script>
+    $(function () {
+        $('.js-api-check').on('click', function () {
+            var $btn = $(this);
+            var oldText = $btn.text();
+
+            $btn.prop('disabled', true).text('Проверка...');
+
+            $.ajax({
+                url: $btn.data('url'),
+                method: 'GET',
+                dataType: 'json',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+                .done(function (res) {
+                    alert((res && res.message) ? res.message : 'OK, есть подключение.');
+                })
+                .fail(function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                        ? xhr.responseJSON.message
+                        : 'Нет подключения.';
+                    alert(msg);
+                })
+                .always(function () {
+                    $btn.prop('disabled', false).text(oldText);
+                });
+        });
+    });
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -171,7 +263,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 'X-Requested-With': 'XMLHttpRequest',
             },
         })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (r) {
+            return r.text().then(function (text) {
+                try {
+                    return { ok: r.ok, status: r.status, data: JSON.parse(text) };
+                } catch (e) {
+                    return {
+                        ok: false,
+                        status: r.status,
+                        data: {
+                            success: false,
+                            message: 'Laravel вернул не JSON. HTTP ' + r.status + ': ' + text.slice(0, 300),
+                            result: {
+                                ok: false,
+                                status: r.status,
+                                message: text.slice(0, 300),
+                            },
+                        },
+                    };
+                }
+            });
+        })
         .then(function (res) {
             renderDbResults(res.data.results || []);
             showDbAlert(res.data.success ? 'success' : 'danger', res.data.message || '');
@@ -200,6 +312,18 @@ document.addEventListener('DOMContentLoaded', function () {
         alertBox.className = 'alert alert-' + type;
         alertBox.textContent = message;
         alertBox.classList.remove('d-none');
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;',
+            }[char];
+        });
     }
 
     function renderResult(result) {
@@ -245,7 +369,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 'X-Requested-With': 'XMLHttpRequest',
             },
         })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (r) {
+            return r.text().then(function (text) {
+                try {
+                    return { ok: r.ok, status: r.status, data: JSON.parse(text) };
+                } catch (e) {
+                    return {
+                        ok: false,
+                        status: r.status,
+                        data: {
+                            success: false,
+                            message: 'Laravel вернул не JSON. HTTP ' + r.status + ': ' + text.slice(0, 300),
+                            result: {
+                                ok: false,
+                                status: r.status,
+                                message: text.slice(0, 300),
+                            },
+                        },
+                    };
+                }
+            });
+        })
         .then(function (res) {
             const result = res.data.result || {};
             renderResult(result);
@@ -344,6 +488,74 @@ document.addEventListener('DOMContentLoaded', function () {
             showAlert(res.data.success ? 'info' : 'danger', res.data.message || '');
         });
     });
+});
+</script>
+@endif
+@if ($geminiProKeyConfigured)
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const alertBox = document.getElementById('geminiProAlert');
+    const resultsBox = document.getElementById('geminiProResults');
+    const btn = document.getElementById('btnGeminiProTest');
+
+    function showAlert(type, message) {
+        alertBox.className = 'alert alert-' + type;
+        alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
+    }
+
+    function renderResult(result) {
+        if (!result) {
+            resultsBox.innerHTML = '';
+            return;
+        }
+
+        const rowClass = result.ok ? 'table-success' : 'table-danger';
+        let html = '<table class="table table-sm table-bordered" style="max-width: 900px;"><tbody>'
+            + '<tr class="' + rowClass + '"><th style="width: 220px;">Статус ключа</th><td>' + (result.ok ? 'OK' : 'Ошибка') + '</td></tr>'
+            + '<tr><th>Ключ</th><td><code>' + (result.mask || '—') + '</code></td></tr>'
+            + '<tr><th>HTTP</th><td>' + (result.status != null ? result.status : '—') + '</td></tr>'
+            + '<tr><th>Модель</th><td><code>' + (result.model || '') + '</code></td></tr>'
+            + '<tr><th>Сообщение</th><td>' + (result.message || '') + '</td></tr>'
+            + '<tr><th>Тестовый ответ</th><td>' + (result.answer ? '<code>' + result.answer + '</code>' : '—') + '</td></tr>'
+            + '<tr><th>Баланс</th><td>' + (result.balance_message || 'Баланс через Gemini API key недоступен.') + '</td></tr>'
+            + '</tbody></table>';
+
+        resultsBox.innerHTML = html;
+    }
+
+    function runTest() {
+        if (!btn) {
+            return;
+        }
+
+        btn.disabled = true;
+        showAlert('info', 'Проверяем GEMINI_PRO_API_KEY…');
+
+        fetch(@json(route('admin.gemini-pro-key.test', [], false)), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+            renderResult(res.data.result || {});
+            showAlert(res.data.success ? 'success' : 'danger', res.data.message || '');
+        })
+        .catch(function () {
+            showAlert('danger', 'Не удалось выполнить запрос проверки');
+        })
+        .finally(function () {
+            btn.disabled = false;
+        });
+    }
+
+    btn?.addEventListener('click', runTest);
 });
 </script>
 @endif

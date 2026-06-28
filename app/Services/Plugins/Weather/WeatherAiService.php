@@ -90,23 +90,7 @@ class WeatherAiService
         // Какая модель выбрана в админке (weather_ai_model в weather_promt)
 
         try {
-            $request = $this->requestFromModel($modelKey, $material, $instruction);
-            $answer = $request['text'];
-            $httpStatus = $request['http_status'];
-
-            if ($this->isGeminiModel($modelKey) && $this->shouldFallbackToOpenAiMini($answer, $httpStatus)) {
-                $fallbackKey = WeatherAiModelChoice::OPENAI_GPT_4O_MINI;
-                Log::warning('[plugin:weather] Gemini недоступен, fallback на OpenAI Mini', [
-                    'primary_model' => $modelKey,
-                    'http_status' => $httpStatus,
-                    'fallback_model' => $fallbackKey,
-                    'language' => $language,
-                ]);
-
-                $fallbackRequest = $this->requestFromModel($fallbackKey, $material, $instruction);
-                $answer = $fallbackRequest['text'];
-                $modelKey = $fallbackKey;
-            }
+            $result = $this->weatherFromModelChain($modelKey, $material, $instruction, $language);
         } catch (RuntimeException $e) {
             Log::error('[plugin:weather] AI', ['error' => $e->getMessage(), 'model' => $modelKey]);
             // Неизвестная модель или ошибка клиента
@@ -114,53 +98,7 @@ class WeatherAiService
             return ['ok' => false, 'message' => $e->getMessage(), 'model' => $modelKey, 'language' => $language];
         }
 
-        if ($answer === null || trim($answer) === '') {
-            Log::warning('[plugin:weather] пустой ответ AI', ['model' => $modelKey, 'language' => $language]);
-            // API вернул пусто — ключи, лимиты, таймаут
-
-            return [
-                'ok' => false,
-                'message' => 'Модель не вернула текст. Проверьте ключи API и логи Laravel.',
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        $parsed = $this->parseWeatherJson($answer);
-        // Вырезаем JSON из ответа, мапим поля temperature, precipitation…
-
-        if ($parsed === null) {
-            Log::warning('[plugin:weather] не удалось разобрать JSON', [
-                'model' => $modelKey,
-                'preview' => mb_substr(trim($answer), 0, 500),
-            ]);
-            // Модель ответила не JSON (Markdown, текст)
-
-            return [
-                'ok' => false,
-                'message' => 'Ответ модели не является валидным JSON. Проверьте промт (только JSON, без Markdown).',
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        if ($parsed['error'] !== null) {
-            Log::warning('[plugin:weather] JSON без данных', [
-                'model' => $modelKey,
-                'reason' => $parsed['error'],
-                'preview' => mb_substr(trim($answer), 0, 500),
-            ]);
-            // JSON есть, но все поля погоды пустые
-
-            return [
-                'ok' => false,
-                'message' => $parsed['error'],
-                'model' => $modelKey,
-                'language' => $language,
-            ];
-        }
-
-        $weather = $parsed['weather'];
+        $weather = $result['weather'];
         // Массив: temperature, precipitation, sunny_days, season, summary
 
         return [
@@ -169,9 +107,68 @@ class WeatherAiService
             // Краткий текст для message
             'weather' => $weather,
             // Данные для WP — блоки на странице
-            'model' => $modelKey,
+            'model' => $result['model'],
             'language' => $language,
         ];
+    }
+
+    /**
+     * @return array{weather: array{temperature: string, precipitation: string, sunny_days: string, season: string, summary: string}, model: string}
+     */
+    private function weatherFromModelChain(string $selectedModel, string $material, string $instruction, string $language): array
+    {
+        $lastMessage = null;
+
+        foreach ($this->fallbackModelChain($selectedModel) as $modelKey) {
+            try {
+                $request = $this->requestFromModel($modelKey, $material, $instruction);
+            } catch (RuntimeException $e) {
+                $lastMessage = $e->getMessage();
+                Log::warning('[plugin:weather] model_exception', [
+                    'model' => $modelKey,
+                    'error' => $e->getMessage(),
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            $answer = $request['text'];
+            if ($answer === null || trim($answer) === '') {
+                $lastMessage = 'Модель '.$modelKey.' не вернула текст.';
+                Log::warning('[plugin:weather] empty_response', [
+                    'model' => $modelKey,
+                    'http_status' => $request['http_status'],
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            $parsed = $this->parseWeatherJson($answer);
+            if ($parsed === null) {
+                $lastMessage = 'Модель '.$modelKey.' вернула невалидный JSON.';
+                Log::warning('[plugin:weather] invalid_json', [
+                    'model' => $modelKey,
+                    'preview' => mb_substr(trim($answer), 0, 500),
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            if ($parsed['error'] !== null) {
+                $lastMessage = $parsed['error'];
+                Log::warning('[plugin:weather] invalid_weather', [
+                    'model' => $modelKey,
+                    'reason' => $parsed['error'],
+                    'preview' => mb_substr(trim($answer), 0, 500),
+                    'language' => $language,
+                ]);
+                continue;
+            }
+
+            return ['weather' => $parsed['weather'], 'model' => $modelKey];
+        }
+
+        throw new RuntimeException($lastMessage ?: 'Все AI-модели не смогли рассчитать погоду.');
     }
 
     private function loadMainPrompt(string $language): string
@@ -352,6 +349,16 @@ TXT;
     {
         return "Month: {$monthName}\nRegion: {$regionName}\nLanguage: {$language}";
         // Три строки — входные данные калькулятора
+    }
+
+    /** @return list<string> */
+    private function fallbackModelChain(string $selectedModel): array
+    {
+        return array_values(array_unique([
+            $selectedModel,
+            WeatherAiModelChoice::GEMINI_PRO,
+            WeatherAiModelChoice::OPENAI_GPT_4O_MINI,
+        ]));
     }
 
     /**
