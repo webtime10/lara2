@@ -210,54 +210,22 @@
 
                             <hr>
 
-                            <h5 class="mb-3">Промты для развлечений</h5>
+                            <h5 class="mb-3">Промт для цен развлечений</h5>
 
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="entertainment_prompt_daily">Одно развлечение в день</label>
-                                        <textarea
-                                            id="entertainment_prompt_daily"
-                                            name="entertainment_prompt_daily"
-                                            class="form-control entertainment-prompt-textarea"
-                                            rows="10"
-                                            placeholder="Промт для варианта: одно развлечение в день..."
-                                        >{{ old('entertainment_prompt_daily', $entertainmentPromptDaily ?? '') }}</textarea>
-                                        <small class="form-text text-muted">
-                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_daily</code>.
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="entertainment_prompt_every_two_days">Одно развлечение в 2 дня</label>
-                                        <textarea
-                                            id="entertainment_prompt_every_two_days"
-                                            name="entertainment_prompt_every_two_days"
-                                            class="form-control entertainment-prompt-textarea"
-                                            rows="10"
-                                            placeholder="Промт для варианта: одно развлечение в 2 дня..."
-                                        >{{ old('entertainment_prompt_every_two_days', $entertainmentPromptEveryTwoDays ?? '') }}</textarea>
-                                        <small class="form-text text-muted">
-                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_every_two_days</code>.
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="entertainment_prompt_every_three_days">Одно развлечение в 3 дня</label>
-                                        <textarea
-                                            id="entertainment_prompt_every_three_days"
-                                            name="entertainment_prompt_every_three_days"
-                                            class="form-control entertainment-prompt-textarea"
-                                            rows="10"
-                                            placeholder="Промт для варианта: одно развлечение в 3 дня..."
-                                        >{{ old('entertainment_prompt_every_three_days', $entertainmentPromptEveryThreeDays ?? '') }}</textarea>
-                                        <small class="form-text text-muted">
-                                            Сохраняется в <code>budget_promt</code> как <code>entertainment_prompt_every_three_days</code>.
-                                        </small>
-                                    </div>
-                                </div>
+                            <div class="form-group">
+                                <label for="entertainment_visit_price_prompt">Цена одного визита по категории</label>
+                                <textarea
+                                    id="entertainment_visit_price_prompt"
+                                    name="entertainment_visit_price_prompt"
+                                    class="form-control entertainment-prompt-textarea"
+                                    rows="14"
+                                    placeholder="AI возвращает adult_avg_price и child_avg_price за 1 визит в USD..."
+                                >{{ old('entertainment_visit_price_prompt', $entertainmentVisitPricePrompt ?? '') }}</textarea>
+                                <small class="form-text text-muted">
+                                    Сохраняется в <code>budget_promt</code> как <code>entertainment_visit_price_prompt</code>.
+                                    Используется на странице <strong>Бюджет → Цены развлечений</strong>.
+                                    Частота визитов (каждый день / через 2 дня / через 3 дня), количество людей и итоговый бюджет считаются в Laravel.
+                                </small>
                             </div>
 
                             <hr>
@@ -390,9 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     'budget_priority_strict_percent',
                     'budget_priority_balance_percent',
                     'budget_priority_relax_percent',
-                    'entertainment_prompt_daily',
-                    'entertainment_prompt_every_two_days',
-                    'entertainment_prompt_every_three_days'
+                    'entertainment_visit_price_prompt',
                 ].forEach(function (key) {
                     const el = document.getElementById(key);
                     if (el && typeof data.prompts[key] === 'string') {

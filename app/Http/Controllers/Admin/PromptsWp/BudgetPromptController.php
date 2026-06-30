@@ -14,13 +14,7 @@ use Illuminate\View\View;
 
 class BudgetPromptController extends Controller
 {
-    private const ENTERTAINMENT_PROMPT_NAME = 'entertainment_prompt';
-
-    private const ENTERTAINMENT_PROMPT_DAILY_NAME = 'entertainment_prompt_daily';
-
-    private const ENTERTAINMENT_PROMPT_EVERY_TWO_DAYS_NAME = 'entertainment_prompt_every_two_days';
-
-    private const ENTERTAINMENT_PROMPT_EVERY_THREE_DAYS_NAME = 'entertainment_prompt_every_three_days';
+    private const ENTERTAINMENT_VISIT_PRICE_PROMPT_NAME = 'entertainment_visit_price_prompt';
 
     private const CAFE_PROMPT_NAME = 'cafe_prompt';
 
@@ -60,10 +54,7 @@ class BudgetPromptController extends Controller
             'pageTitle' => 'Промты WP — Budget',
             'languages' => $languages,
             'promptsByCode' => $promptsByCode,
-            'entertainmentPrompt' => BudgetPromt::where('name', self::ENTERTAINMENT_PROMPT_NAME)->value('content') ?? '',
-            'entertainmentPromptDaily' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_DAILY_NAME),
-            'entertainmentPromptEveryTwoDays' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_EVERY_TWO_DAYS_NAME),
-            'entertainmentPromptEveryThreeDays' => $this->entertainmentPromptContent(self::ENTERTAINMENT_PROMPT_EVERY_THREE_DAYS_NAME),
+            'entertainmentVisitPricePrompt' => BudgetPromt::where('name', self::ENTERTAINMENT_VISIT_PRICE_PROMPT_NAME)->value('content') ?? '',
 			'groceryPrompt' => BudgetPromt::where('name', self::GROCERY_PROMPT_NAME)->value('content') ?? '',
             'cafePrompt' => BudgetPromt::where('name', self::CAFE_PROMPT_NAME)->value('content') ?? '',
             'restaurantsPrompt' => BudgetPromt::where('name', self::RESTAURANTS_PROMPT_NAME)->value('content') ?? '',
@@ -85,10 +76,7 @@ class BudgetPromptController extends Controller
 
         $rules = [
             'budget_ai_model' => ['nullable', 'string', Rule::in(BudgetAiModelChoice::keys())],
-            'entertainment_prompt' => ['nullable', 'string'],
-            'entertainment_prompt_daily' => ['nullable', 'string'],
-            'entertainment_prompt_every_two_days' => ['nullable', 'string'],
-            'entertainment_prompt_every_three_days' => ['nullable', 'string'],
+            'entertainment_visit_price_prompt' => ['nullable', 'string'],
 			'korzina_magazina' => ['nullable', 'string'],
             'cafe_prompt' => ['nullable', 'string'],
             'restaurants_prompt' => ['nullable', 'string'],
@@ -111,35 +99,12 @@ class BudgetPromptController extends Controller
         );
 
         $saved = ['budget_ai_model' => $modelKey];
-        if (array_key_exists('entertainment_prompt', $validated)) {
-            $entertainmentPrompt = $validated['entertainment_prompt'] ?? '';
-            BudgetPromt::updateOrCreate(
-                ['name' => self::ENTERTAINMENT_PROMPT_NAME],
-                ['content' => $entertainmentPrompt]
-            );
-            $saved['entertainment_prompt'] = $entertainmentPrompt;
-        }
-
-        $entertainmentPromptDaily = $validated['entertainment_prompt_daily'] ?? '';
+        $entertainmentVisitPricePrompt = $validated['entertainment_visit_price_prompt'] ?? '';
         BudgetPromt::updateOrCreate(
-            ['name' => self::ENTERTAINMENT_PROMPT_DAILY_NAME],
-            ['content' => $entertainmentPromptDaily]
+            ['name' => self::ENTERTAINMENT_VISIT_PRICE_PROMPT_NAME],
+            ['content' => $entertainmentVisitPricePrompt]
         );
-        $saved['entertainment_prompt_daily'] = $entertainmentPromptDaily;
-
-        $entertainmentPromptEveryTwoDays = $validated['entertainment_prompt_every_two_days'] ?? '';
-        BudgetPromt::updateOrCreate(
-            ['name' => self::ENTERTAINMENT_PROMPT_EVERY_TWO_DAYS_NAME],
-            ['content' => $entertainmentPromptEveryTwoDays]
-        );
-        $saved['entertainment_prompt_every_two_days'] = $entertainmentPromptEveryTwoDays;
-
-        $entertainmentPromptEveryThreeDays = $validated['entertainment_prompt_every_three_days'] ?? '';
-        BudgetPromt::updateOrCreate(
-            ['name' => self::ENTERTAINMENT_PROMPT_EVERY_THREE_DAYS_NAME],
-            ['content' => $entertainmentPromptEveryThreeDays]
-        );
-        $saved['entertainment_prompt_every_three_days'] = $entertainmentPromptEveryThreeDays;
+        $saved['entertainment_visit_price_prompt'] = $entertainmentVisitPricePrompt;
 
 		$groceryPrompt = $validated['korzina_magazina'] ?? '';
 		BudgetPromt::updateOrCreate(
@@ -216,16 +181,6 @@ class BudgetPromptController extends Controller
     private function promptName(string $code): string
     {
         return 'glavnyy_prompt_'.$code;
-    }
-
-    private function entertainmentPromptContent(string $name): string
-    {
-        $content = BudgetPromt::where('name', $name)->value('content');
-        if (is_string($content) && $content !== '') {
-            return $content;
-        }
-
-        return BudgetPromt::where('name', self::ENTERTAINMENT_PROMPT_NAME)->value('content') ?? '';
     }
 
     private function settingValue(string $name): string

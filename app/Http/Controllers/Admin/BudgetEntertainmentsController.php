@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\SwissEntertainment;
 use App\Models\SwissEntertainmentSyncState;
 use App\Models\SwissRegion;
-use App\Services\EntertainmentGeminiService;
 use App\Services\SwissEntertainmentsService;
 use App\Support\SyncErrorMessage;
 use Illuminate\Http\JsonResponse;
@@ -101,40 +100,6 @@ class BudgetEntertainmentsController extends Controller
         ]);
     }
 
-    public function sendToGemini(
-        string $slug,
-        Request $request,
-        SwissEntertainmentsService $entertainments,
-        EntertainmentGeminiService $gemini,
-    ): JsonResponse {
-        $region = $entertainments->findRegion($slug);
-        if ($region === null) {
-            return response()->json(['ok' => false, 'message' => 'Регион не найден'], 404);
-        }
-
-        try {
-            $result = $gemini->runForRegion(
-                $region,
-                $request->input('entertainment_level')
-            );
-
-            return response()->json([
-                'ok' => true,
-                'slug' => $region->slug,
-                'label' => $region->label,
-                'payload' => $result['payload'],
-                'answer' => $result['answer'],
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'ok' => false,
-                'slug' => $slug,
-                'label' => $region->label,
-                'message' => SyncErrorMessage::format($e),
-            ], 502);
-        }
-    }
-
     public function show(string $slug, Request $request, SwissEntertainmentsService $entertainments): View
     {
         $region = $entertainments->findRegion($slug);
@@ -163,7 +128,6 @@ class BudgetEntertainmentsController extends Controller
             'items' => $items,
             'syncedCount' => $syncedCount,
             'summary' => $entertainments->regionSummary($region->entertainments()->get()),
-            'structuredPayload' => $entertainments->structuredForRegion($region),
             'error' => $error,
         ]);
     }

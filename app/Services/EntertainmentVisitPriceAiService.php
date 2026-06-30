@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BudgetPromt;
 use App\Models\EntertainmentVisitPrice;
 use App\Models\SwissEntertainment;
 use App\Models\SwissRegion;
@@ -10,6 +11,8 @@ use RuntimeException;
 
 class EntertainmentVisitPriceAiService
 {
+    public const PROMPT_NAME = 'entertainment_visit_price_prompt';
+
     public function __construct(
         private GeminiService $gemini,
         private GeminiProService $geminiPro,
@@ -209,32 +212,17 @@ class EntertainmentVisitPriceAiService
 
     private function instruction(): string
     {
-        return <<<'TXT'
-You estimate average entertainment visit prices for Swiss travel budget calculations.
+        $prompt = trim((string) BudgetPromt::query()
+            ->where('name', self::PROMPT_NAME)
+            ->value('content'));
 
-Use the provided places as local evidence. Consider category, rating, reviews, website, and canton.
-Return prices in USD for one visit per person.
-Return ONLY valid JSON object. No markdown. No explanations.
+        if ($prompt !== '') {
+            return $prompt;
+        }
 
-Required format:
-{
-  "prices": [
-    {
-      "category": "Museum",
-      "adult_avg_price": 25,
-      "child_avg_price": 15
-    }
-  ]
-}
-
-Rules:
-- Return one row per category that has enough evidence in the provided places.
-- category must be exactly one of the provided category names.
-- adult_avg_price is the typical adult ticket/visit price.
-- child_avg_price is the typical child ticket/visit price.
-- If child price is unclear, use about 60% of adult price.
-- Free public attractions should be 0 only if the category is normally free; otherwise estimate the usual paid visit price.
-TXT;
+        throw new RuntimeException(
+            'Промт для цен развлечений не задан. Заполните его в админке: Промты WP → Budget → Цена одного визита по категории.'
+        );
     }
 
     /** @return array<string, array{adult_avg_price: ?float, child_avg_price: ?float}> */

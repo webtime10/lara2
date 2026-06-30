@@ -147,7 +147,6 @@ Route::prefix('admin')
             Route::post('clear/{slug}', [BudgetEntertainmentsController::class, 'clearRegion'])->name('clear');
             Route::post('sync-all/complete', [BudgetEntertainmentsController::class, 'completeFullSync'])->name('sync-all.complete');
             Route::post('sync/{slug}', [BudgetEntertainmentsController::class, 'syncRegion'])->name('sync');
-            Route::post('gemini/{slug}', [BudgetEntertainmentsController::class, 'sendToGemini'])->name('gemini');
             Route::get('{slug}', [BudgetEntertainmentsController::class, 'show'])->name('show');
         });
 
