@@ -13,6 +13,20 @@ class EntertainmentVisitPriceAiService
 {
     public const PROMPT_NAME = 'entertainment_visit_price_prompt';
 
+    /** @var array<string, float> */
+    private const FALLBACK_ADULT_USD = [
+        EntertainmentCategory::MUSEUM => 20.0,
+        EntertainmentCategory::CINEMA => 18.0,
+        EntertainmentCategory::ZOO => 32.0,
+        EntertainmentCategory::AQUARIUM => 35.0,
+        EntertainmentCategory::AMUSEMENT_PARK => 45.0,
+        EntertainmentCategory::THEME_PARK => 55.0,
+        EntertainmentCategory::WATER_PARK => 42.0,
+        EntertainmentCategory::ESCAPE_ROOM => 38.0,
+        EntertainmentCategory::BOAT_TOUR => 35.0,
+        EntertainmentCategory::SKI_RESORT => 55.0,
+    ];
+
     public function __construct(
         private GeminiService $gemini,
         private GeminiProService $geminiPro,
@@ -46,25 +60,28 @@ class EntertainmentVisitPriceAiService
                 continue;
             }
 
-            $adult = $row['adult_avg_price'];
-            if ($adult === null) {
+            $placesCount = (int) ($counts->get($category) ?? 0);
+            $price = $this->normalizedPriceRow($category, $row, $placesCount);
+            if ($price === null) {
                 continue;
             }
 
-            $saved[$category] = EntertainmentVisitPrice::query()->updateOrCreate(
-                [
-                    'region_id' => $region->id,
-                    'category' => $category,
-                ],
-                [
-                    'adult_avg_price' => $adult,
-                    'child_avg_price' => $row['child_avg_price'] ?? round($adult * 0.6, 2),
-                    'currency' => 'USD',
-                    'ai_model' => $model,
-                    'places_count' => (int) ($counts->get($category) ?? 0),
-                    'last_checked' => now(),
-                ],
-            );
+            $saved[$category] = $this->savePrice($region, $category, $price, $model, $placesCount);
+        }
+
+        foreach ($counts as $category => $placesCount) {
+            $category = (string) $category;
+            $placesCount = (int) $placesCount;
+            if ($placesCount <= 0 || isset($saved[$category])) {
+                continue;
+            }
+
+            $price = $this->normalizedPriceRow($category, ['adult_avg_price' => null, 'child_avg_price' => null], $placesCount);
+            if ($price === null) {
+                continue;
+            }
+
+            $saved[$category] = $this->savePrice($region, $category, $price, $model, $placesCount);
         }
 
         if ($saved === []) {
@@ -260,6 +277,62 @@ class EntertainmentVisitPriceAiService
         }
 
         return array_filter($prices, fn (array $row): bool => $row['adult_avg_price'] !== null);
+    }
+
+    /**
+     * @param  array{adult_avg_price: ?float, child_avg_price: ?float}  $row
+     * @return array{adult_avg_price: float, child_avg_price: float}|null
+     */
+    private function normalizedPriceRow(string $category, array $row, int $placesCount): ?array
+    {
+        if ($placesCount <= 0) {
+            return null;
+        }
+
+        $adult = $row['adult_avg_price'] ?? null;
+        if ($adult === null || $adult <= 0.0) {
+            $adult = self::FALLBACK_ADULT_USD[$category] ?? null;
+        }
+
+        if ($adult === null || $adult <= 0.0) {
+            return null;
+        }
+
+        $child = $row['child_avg_price'] ?? null;
+        if ($child === null || $child <= 0.0) {
+            $child = round($adult * 0.6, 2);
+        }
+
+        return [
+            'adult_avg_price' => round((float) $adult, 2),
+            'child_avg_price' => round((float) $child, 2),
+        ];
+    }
+
+    /**
+     * @param  array{adult_avg_price: float, child_avg_price: float}  $price
+     */
+    private function savePrice(
+        SwissRegion $region,
+        string $category,
+        array $price,
+        string $model,
+        int $placesCount,
+    ): EntertainmentVisitPrice {
+        return EntertainmentVisitPrice::query()->updateOrCreate(
+            [
+                'region_id' => $region->id,
+                'category' => $category,
+            ],
+            [
+                'adult_avg_price' => $price['adult_avg_price'],
+                'child_avg_price' => $price['child_avg_price'],
+                'currency' => 'USD',
+                'ai_model' => $model,
+                'places_count' => $placesCount,
+                'last_checked' => now(),
+            ],
+        );
     }
 
     private function numericOrNull(mixed $value): ?float

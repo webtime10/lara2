@@ -81,6 +81,8 @@
                                         >{{ old('cafe_prompt', $cafePrompt ?? '') }}</textarea>
                                         <small class="form-text text-muted">
                                             Сохраняется в <code>budget_promt</code> как <code>cafe_prompt</code>.
+                                            AI возвращает <strong>дневной</strong> бюджет (завтрак + обед + ужин) на 1 человека в USD.
+                                            Laravel умножает эту сумму на количество дней поездки.
                                         </small>
                                     </div>
                                 </div>
@@ -96,6 +98,8 @@
                                         >{{ old('restaurants_prompt', $restaurantsPrompt ?? '') }}</textarea>
                                         <small class="form-text text-muted">
                                             Сохраняется в <code>budget_promt</code> как <code>restaurants_prompt</code>.
+                                            AI возвращает <strong>дневной</strong> бюджет (завтрак + обед + ужин) на 1 человека в USD.
+                                            Laravel умножает эту сумму на количество дней поездки.
                                         </small>
                                     </div>
                                 </div>

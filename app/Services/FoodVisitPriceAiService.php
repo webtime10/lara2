@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BudgetPromt;
 use App\Models\FoodImport;
 use App\Models\FoodSample;
 use App\Models\FoodVisitPrice;
@@ -10,6 +11,10 @@ use RuntimeException;
 
 class FoodVisitPriceAiService
 {
+    public const CAFE_PROMPT_NAME = 'cafe_prompt';
+
+    public const RESTAURANTS_PROMPT_NAME = 'restaurants_prompt';
+
     public function __construct(
         private GeminiService $gemini,
         private GeminiProService $geminiPro,
@@ -224,25 +229,26 @@ class FoodVisitPriceAiService
 
     private function instruction(string $foodType): string
     {
-        $label = FoodVisitPrice::typeLabels()[$foodType] ?? $foodType;
+        $promptName = match ($foodType) {
+            FoodVisitPrice::TYPE_CAFE => self::CAFE_PROMPT_NAME,
+            FoodVisitPrice::TYPE_RESTAURANT => self::RESTAURANTS_PROMPT_NAME,
+            default => null,
+        };
 
-        return <<<TXT
-You estimate average visit prices for Swiss travel budget calculations.
+        if ($promptName !== null) {
+            $prompt = trim((string) BudgetPromt::query()
+                ->where('name', $promptName)
+                ->value('content'));
 
-Food place type: {$label}
+            if ($prompt !== '') {
+                return $prompt;
+            }
+        }
 
-Use the provided places as local evidence. Consider price_level, rating, reviews_count, and canton.
-Return ONLY valid JSON object. No markdown. No explanations.
-Currency must be USD.
-
-Required keys:
-- adult_avg_price: average price for one adult visit
-- child_avg_price: average price for one child visit
-
-For cafe: estimate one simple cafe visit per person.
-For restaurant: estimate one normal restaurant visit per person, not luxury fine dining.
-If child menu data is not explicit, use about 60% of adult price.
-TXT;
+        throw new RuntimeException(
+            'Промт для цен питания не задан. Заполните его в админке: Промты WP → Budget → '
+            .(FoodVisitPrice::typeLabels()[$foodType] ?? $foodType).'.'
+        );
     }
 
     /** @return array{adult_avg_price: float|null, child_avg_price: float|null} */
