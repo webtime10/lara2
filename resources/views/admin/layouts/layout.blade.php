@@ -238,9 +238,21 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.hotel-average-prices.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Средние цены отелей</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.budget.apartments.index') }}" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Апартаменты</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.apartment-average-prices.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Средние цены апартаментов</p>
                                 </a>
                             </li>
                             <li class="nav-item">

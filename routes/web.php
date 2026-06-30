@@ -12,6 +12,8 @@ use App\Http\Controllers\Admin\BudgetEntertainmentsController;
 use App\Http\Controllers\Admin\BudgetHotelsController;
 use App\Http\Controllers\Admin\CarRentalPriceController;
 use App\Http\Controllers\Admin\EntertainmentVisitPriceController;
+use App\Http\Controllers\Admin\HotelAveragePriceController;
+use App\Http\Controllers\Admin\ApartmentAveragePriceController;
 use App\Http\Controllers\Admin\FoodImportController;
 use App\Http\Controllers\Admin\FoodSampleController;
 use App\Http\Controllers\Admin\FoodSourceController;
@@ -116,6 +118,8 @@ Route::prefix('admin')
 
         Route::get('budget-calculator', [BudgetCalculatorController::class, 'index'])->name('budget-calculator.index');
         Route::post('budget-calculator/bulk-delete', [BudgetCalculatorController::class, 'bulkDelete'])->name('budget-calculator.bulk-delete');
+        Route::get('hotel-average-prices', [HotelAveragePriceController::class, 'index'])->name('hotel-average-prices.index');
+        Route::get('apartment-average-prices', [ApartmentAveragePriceController::class, 'index'])->name('apartment-average-prices.index');
         Route::get('car-rental-prices', [CarRentalPriceController::class, 'index'])->name('car-rental-prices.index');
         Route::post('car-rental-prices/clear-all', [CarRentalPriceController::class, 'clearAll'])->name('car-rental-prices.clear-all');
         Route::post('car-rental-prices/{slug}', [CarRentalPriceController::class, 'refresh'])->name('car-rental-prices.refresh');
