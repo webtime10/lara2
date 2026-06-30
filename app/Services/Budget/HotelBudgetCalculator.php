@@ -8,6 +8,7 @@ use App\Models\SwissRegion;
 
 class HotelBudgetCalculator
 {
+    private const SINGLE_ROOM_PRICE_RATIO = 0.8;
 
 /*
 2 взрослых + 1 ребёнок
@@ -104,8 +105,9 @@ extra = +20%
         }
 
         // Итог проживания:
-        // средняя цена номера за ночь * количество нужных номеров * количество дней.
-        return round((float) $roomPrice * $this->roomsCount($answer) * $days, 2);
+        // средняя цена двухместного номера за ночь * коэффициент номеров * количество дней.
+        // Одноместный номер считаем приблизительно как 80% от цены двухместного.
+        return round((float) $roomPrice * $this->roomPriceMultiplier($answer) * $days, 2);
     }
 
     private function region(QuizAnswer $answer): ?SwissRegion
@@ -134,7 +136,7 @@ extra = +20%
         };
     }
 
-    private function roomsCount(QuizAnswer $answer): int
+    private function roomPriceMultiplier(QuizAnswer $answer): float
     {
         // travelers_count — сколько всего путешественников выбрали в форме.
         $travelers = max(1, (int) $answer->travelers_count);
@@ -146,17 +148,26 @@ extra = +20%
         // а children_count приходит отдельным полем. Поэтому взрослых берём напрямую.
         $adults = $travelers;
 
-        // Взрослые живут по 2 человека в двухместном номере:
-        // 1-2 взрослых = 1 номер, 3-4 взрослых = 2 номера и т.д.
-        $adultRooms = max(1, (int) ceil($adults / 2));
+        // Взрослые живут по 2 человека в двухместном номере.
+        // Если взрослый остался без пары, считаем одноместный номер как 80% двухместного.
+        $doubleRooms = intdiv($adults, 2);
+        $singleRooms = $adults % 2;
+
+        // Один взрослый с детьми должен получить минимум полноценный номер,
+        // а не одиночный тариф, потому что дети размещаются с ним.
+        if ($singleRooms > 0 && $children > 0) {
+            $doubleRooms++;
+            $singleRooms--;
+        }
 
         // Семейная схема:
         // до 2 детей можно подселить к взрослым без отдельного номера.
         // Если детей больше 2, каждые следующие 2 ребёнка дают ещё 1 номер.
         $extraChildren = max(0, $children - 2);
-        $childRooms = (int) ceil($extraChildren / 2);
+        $doubleRooms += intdiv($extraChildren, 2);
+        $singleRooms += $extraChildren % 2;
 
-        return $adultRooms + $childRooms;
+        return $doubleRooms + ($singleRooms * self::SINGLE_ROOM_PRICE_RATIO);
     }
 }
 /*

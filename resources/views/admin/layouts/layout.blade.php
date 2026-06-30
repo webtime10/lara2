@@ -256,6 +256,12 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.entertainment-visit-prices.index') }}" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Цены развлечений</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.food-sources.index') }}" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Цены питания</p>

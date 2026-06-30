@@ -33,93 +33,12 @@ class FoodBudgetGeminiService
     {
         $promptName = $this->promptNameForDiningLevel($answer->dining_level);
         $payload = $this->payloadForAnswer($answer);
-        $prompt = $this->renderPrompt($promptName, $payload);
-
-        if ($prompt === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback food amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $material = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        if (! is_string($material) || trim($material) === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback food amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $cacheKey = 'budget_food:'.sha1($promptName.'|'.$prompt.'|'.$material);
-        $cached = Cache::get($cacheKey);
-        if (is_array($cached) && isset($cached['amount'])) {
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Cached food amount: '.$cached['amount'],
-                'amount' => (float) $cached['amount'],
-            ];
-        }
-
-        Log::info('[food:gemini] request', [
-            'quiz_answer_id' => $answer->id,
-            'prompt_name' => $promptName,
-            'dining_level' => $answer->dining_level,
-            'payload' => $payload,
-        ]);
-
-        $aiAnswer = $this->moneyAnswerFromModelChain($material, $prompt);
-        $rawAnswer = $aiAnswer['answer'];
-        if ($rawAnswer === null || trim($rawAnswer) === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-            Log::warning('[food:gemini] empty_response', [
-                'quiz_answer_id' => $answer->id,
-                'prompt_name' => $promptName,
-                'http_status' => $this->gemini->lastHttpStatus(),
-                'fallback_amount' => $amount,
-            ]);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback food amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $amount = $aiAnswer['amount'];
-        if ($amount === null) {
-            $amount = $this->fallbackAmountForAnswer($answer);
-            Log::warning('[food:gemini] amount_parse_failed', [
-                'quiz_answer_id' => $answer->id,
-                'prompt_name' => $promptName,
-                'raw_answer' => $rawAnswer,
-                'fallback_amount' => $amount,
-            ]);
-        }
-
-        Log::info('[food:gemini] response', [
-            'quiz_answer_id' => $answer->id,
-            'prompt_name' => $promptName,
-            'raw_answer' => $rawAnswer,
-            'parsed_amount' => $amount,
-            'model' => $aiAnswer['model'],
-        ]);
-
-        Cache::put($cacheKey, ['amount' => $amount], now()->addDays(20));
+        $amount = $this->fallbackAmountForAnswer($answer);
 
         return [
             'prompt_name' => $promptName,
             'payload' => $payload,
-            'answer' => $rawAnswer,
+            'answer' => 'Database food amount: '.$amount,
             'amount' => $amount,
         ];
     }
@@ -185,6 +104,16 @@ class FoodBudgetGeminiService
 
     public function fallbackAmountForAnswer(QuizAnswer $answer): float
     {
+        $storedGroceryPrice = $this->storedGroceryPriceForAnswer($answer);
+        if ($storedGroceryPrice !== null) {
+            $days = max(1, (int) ($answer->total_days ?: 1));
+            $adults = max(0, (int) $answer->travelers_count);
+            $children = max(0, (int) $answer->children_count);
+            $adultEquivalent = max(1.0, $adults + ($children * 0.6));
+
+            return round($days * $adultEquivalent * $storedGroceryPrice, 2);
+        }
+
         $storedVisitPrice = $this->storedVisitPriceForAnswer($answer);
         if ($storedVisitPrice !== null) {
             $days = max(1, (int) ($answer->total_days ?: 1));
@@ -409,6 +338,36 @@ class FoodBudgetGeminiService
             'adult' => $visitPrice['adult_avg_price'],
             'child' => $visitPrice['child_avg_price'],
         ];
+    }
+
+    private function storedGroceryPriceForAnswer(QuizAnswer $answer): ?float
+    {
+        if ($this->promptNameForDiningLevel($answer->dining_level) !== self::GROCERY_PROMPT) {
+            return null;
+        }
+
+        $region = $this->regionForAnswer($answer);
+        if (! $region) {
+            return null;
+        }
+
+        $totals = FoodSource::query()
+            ->where('region_id', $region->id)
+            ->where('food_type', FoodSource::TYPE_HOME_COOKING)
+            ->get()
+            ->map(function (FoodSource $source): float {
+                $sum = 0.0;
+                foreach (FoodSource::GROCERY_PRICE_FIELDS as $field) {
+                    if ($source->{$field} !== null && $source->{$field} !== '') {
+                        $sum += (float) $source->{$field};
+                    }
+                }
+
+                return $sum;
+            })
+            ->filter(fn (float $sum): bool => $sum > 0);
+
+        return $totals->isNotEmpty() ? round((float) $totals->avg(), 2) : null;
     }
 
     private function foodVisitTypeForDiningLevel(?string $diningLevel): ?string

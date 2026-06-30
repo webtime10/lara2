@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\BudgetPromt;
 use App\Models\FoodSource;
 use App\Models\SwissRegion;
 use RuntimeException;
 
 class FoodSourceGeminiPriceService
 {
+	private const PROMPT_NAME = 'korzina_magazina';
+
     public const MODEL_GEMINI_FREE = 'gemini_free';
 
     public const MODEL_GEMINI_PAID = 'gemini_paid';
@@ -52,7 +55,7 @@ class FoodSourceGeminiPriceService
                 'region_id' => $region->id,
                 'name' => 'Продуктовая корзина — '.$region->label,
                 'food_type' => FoodSource::TYPE_HOME_COOKING,
-                'currency' => 'CHF',
+                'currency' => 'USD',
             ]);
         }
 
@@ -60,7 +63,7 @@ class FoodSourceGeminiPriceService
             'region_id' => $region->id,
             'name' => $source->name ?: 'Продуктовая корзина — '.$region->label,
             'food_type' => FoodSource::TYPE_HOME_COOKING,
-            'currency' => 'CHF',
+            'currency' => 'USD',
             'website' => $source->website,
             'last_checked' => now(),
         ];
@@ -170,12 +173,19 @@ class FoodSourceGeminiPriceService
     private function instruction(array $allowedFields): string
     {
         $fields = implode(', ', $allowedFields);
+		$customPrompt = trim((string) BudgetPromt::query()
+			->where('name', self::PROMPT_NAME)
+			->value('content'));
+
+		if ($customPrompt !== '') {
+			return $customPrompt."\n\nAllowed keys: {$fields}\nUse only the allowed keys. Do not include any other fields.";
+		}
 
         return <<<TXT
 You estimate current grocery basket prices for Swiss food budget calculations.
 
 Return ONLY valid JSON object. No markdown. No explanations.
-Currency must be CHF. Prices must be numeric decimal values or null.
+Currency must be USD. Prices must be numeric decimal values or null.
 
 Use realistic average retail prices for the canton/region in Switzerland.
 Use common grocery store prices, not restaurant/cafe prices.
@@ -203,7 +213,7 @@ TXT;
             'country' => 'Switzerland',
             'canton' => $region->label,
             'region_slug' => $region->slug,
-            'currency' => 'CHF',
+            'currency' => 'USD',
             'food_type' => FoodSource::TYPE_HOME_COOKING,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '';
     }

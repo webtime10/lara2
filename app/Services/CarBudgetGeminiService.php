@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class CarBudgetGeminiService
 {
+    private const PEOPLE_PER_CAR = 5;
+
     private const ECONOMY_PROMPT = 'car_economy_prompt';
 
     private const MEDIUM_PROMPT = 'car_medium_prompt';
@@ -28,106 +30,25 @@ class CarBudgetGeminiService
      */
     public function runForAnswer(QuizAnswer $answer): array
     {
+        $payload = $this->payloadForAnswer($answer);
+
         if (! $this->needsCar($answer)) {
             return [
                 'prompt_name' => '',
-                'payload' => $this->payloadForAnswer($answer),
+                'payload' => $payload,
                 'answer' => 'No car rental selected',
                 'amount' => 0.0,
             ];
         }
 
-        $storedAmount = $this->storedAmountForAnswer($answer);
-        if ($storedAmount !== null) {
-            return [
-                'prompt_name' => '',
-                'payload' => $this->payloadForAnswer($answer),
-                'answer' => 'Stored car rental amount: '.$storedAmount,
-                'amount' => $storedAmount,
-            ];
-        }
+        $amount = $this->fallbackAmountForAnswer($answer);
 
-        $promptName = $this->promptNameForCarClass($answer->car_class);
-        $payload = $this->payloadForAnswer($answer);
-        $prompt = $this->renderPrompt($promptName, $payload);
-
-        if ($prompt === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback car amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $material = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        if (! is_string($material) || trim($material) === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback car amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $cacheKey = 'budget_car:'.sha1($promptName.'|'.$prompt.'|'.$material);
-        $cached = Cache::get($cacheKey);
-        if (is_array($cached) && isset($cached['amount'])) {
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Cached car amount: '.$cached['amount'],
-                'amount' => (float) $cached['amount'],
-            ];
-        }
-
-        Log::info('[car:gemini] request', [
-            'quiz_answer_id' => $answer->id,
-            'prompt_name' => $promptName,
-            'car_class' => $answer->car_class,
-            'payload' => $payload,
-        ]);
-
-        $aiAnswer = $this->moneyAnswerFromModelChain($material, $prompt);
-        $rawAnswer = $aiAnswer['answer'];
-        if ($rawAnswer === null || trim($rawAnswer) === '') {
-            $amount = $this->fallbackAmountForAnswer($answer);
-            Log::warning('[car:gemini] empty_response', [
-                'quiz_answer_id' => $answer->id,
-                'prompt_name' => $promptName,
-                'http_status' => $this->gemini->lastHttpStatus(),
-                'fallback_amount' => $amount,
-            ]);
-
-            return [
-                'prompt_name' => $promptName,
-                'payload' => $payload,
-                'answer' => 'Fallback car amount: '.$amount,
-                'amount' => $amount,
-            ];
-        }
-
-        $amount = $aiAnswer['amount'];
-        if ($amount === null) {
-            $amount = $this->fallbackAmountForAnswer($answer);
-            Log::warning('[car:gemini] amount_parse_failed', [
-                'quiz_answer_id' => $answer->id,
-                'prompt_name' => $promptName,
-                'raw_answer' => $rawAnswer,
-                'fallback_amount' => $amount,
-            ]);
-        }
-
-        Cache::put($cacheKey, ['amount' => $amount], now()->addDays(20));
+        $carsCount = $this->carsCountForAnswer($answer);
 
         return [
-            'prompt_name' => $promptName,
+            'prompt_name' => $this->promptNameForCarClass($answer->car_class),
             'payload' => $payload,
-            'answer' => $rawAnswer,
+            'answer' => 'Database car rental amount: '.$amount.' ('.$carsCount.' car'.($carsCount > 1 ? 's' : '').')',
             'amount' => $amount,
         ];
     }
@@ -203,8 +124,9 @@ class CarBudgetGeminiService
         }
 
         $days = max(1, (int) ($answer->total_days ?: 1));
+        $carsCount = $this->carsCountForAnswer($answer);
 
-        return round($days * $this->dailyFallbackForCarClass($answer->car_class), 2);
+        return round($days * $this->dailyFallbackForCarClass($answer->car_class) * $carsCount, 2);
     }
 
     private function needsCar(QuizAnswer $answer): bool
@@ -256,8 +178,19 @@ class CarBudgetGeminiService
         }
 
         $days = max(1, (int) ($answer->total_days ?: 1));
+        $carsCount = $this->carsCountForAnswer($answer);
 
-        return round($days * (float) $price->daily_price, 2);
+        return round($days * (float) $price->daily_price * $carsCount, 2);
+    }
+
+    private function carsCountForAnswer(QuizAnswer $answer): int
+    {
+        $people = (int) ($answer->total_people ?? 0);
+        if ($people <= 0) {
+            $people = (int) $answer->travelers_count + (int) $answer->children_count;
+        }
+
+        return max(1, (int) ceil(max(1, $people) / self::PEOPLE_PER_CAR));
     }
 
     private function carClassKey(?string $carClass): ?string
@@ -296,6 +229,8 @@ class CarBudgetGeminiService
             'language' => $answer->language ?: 'ar',
             'car_rental' => $answer->car_rental,
             'car_class' => $answer->car_class,
+            'total_people' => max(1, (int) ($answer->total_people ?: ((int) $answer->travelers_count + (int) $answer->children_count))),
+            'cars_count' => $this->carsCountForAnswer($answer),
         ];
     }
 

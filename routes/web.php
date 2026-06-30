@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\BudgetApartmentsController;
 use App\Http\Controllers\Admin\BudgetEntertainmentsController;
 use App\Http\Controllers\Admin\BudgetHotelsController;
 use App\Http\Controllers\Admin\CarRentalPriceController;
+use App\Http\Controllers\Admin\EntertainmentVisitPriceController;
 use App\Http\Controllers\Admin\FoodImportController;
 use App\Http\Controllers\Admin\FoodSampleController;
 use App\Http\Controllers\Admin\FoodSourceController;
@@ -118,6 +119,9 @@ Route::prefix('admin')
         Route::get('car-rental-prices', [CarRentalPriceController::class, 'index'])->name('car-rental-prices.index');
         Route::post('car-rental-prices/clear-all', [CarRentalPriceController::class, 'clearAll'])->name('car-rental-prices.clear-all');
         Route::post('car-rental-prices/{slug}', [CarRentalPriceController::class, 'refresh'])->name('car-rental-prices.refresh');
+        Route::get('entertainment-visit-prices', [EntertainmentVisitPriceController::class, 'index'])->name('entertainment-visit-prices.index');
+        Route::post('entertainment-visit-prices', [EntertainmentVisitPriceController::class, 'save'])->name('entertainment-visit-prices.save');
+        Route::post('entertainment-visit-prices/{slug}', [EntertainmentVisitPriceController::class, 'refresh'])->name('entertainment-visit-prices.refresh');
 
         Route::prefix('budget/hotels')->name('budget.hotels.')->group(function () {
             Route::get('/', [BudgetHotelsController::class, 'index'])->name('index');

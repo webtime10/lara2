@@ -52,11 +52,23 @@
 
                             <h5 class="mb-3">Промты для питания</h5>
 
-                            <p class="text-muted">
-                                Продуктовая корзина считается напрямую из базы <code>food_sources</code>, поэтому промт для неё не нужен.
-                            </p>
-
                             <div class="row">
+								<div class="col-md-12">
+									<div class="form-group">
+										<label for="korzina_magazina">Продуктовая корзина</label>
+										<textarea
+											id="korzina_magazina"
+											name="korzina_magazina"
+											class="form-control food-prompt-textarea"
+											rows="10"
+											placeholder="Промт для продуктовой корзины..."
+										>{{ old('korzina_magazina', $groceryPrompt ?? '') }}</textarea>
+										<small class="form-text text-muted">
+											Сохраняется в <code>budget_promt</code> как <code>korzina_magazina</code>.
+											В Gemini отдельно передаётся SOURCE TEXT JSON с кантоном, валютой и типом <code>home_cooking</code>.
+										</small>
+									</div>
+								</div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="cafe_prompt">Кафе</label>
@@ -369,6 +381,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 });
                 [
+					'korzina_magazina',
                     'cafe_prompt',
                     'restaurants_prompt',
                     'car_economy_prompt',

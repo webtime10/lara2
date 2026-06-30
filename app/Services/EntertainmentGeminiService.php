@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\BudgetPromt;
+use App\Models\EntertainmentVisitPrice;
 use App\Models\QuizAnswer;
 use App\Models\SwissRegion;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class EntertainmentGeminiService
@@ -39,19 +41,28 @@ class EntertainmentGeminiService
      */
     public function runForAnswer(QuizAnswer $answer): array
     {
-        $region = $this->regionForAnswer($answer);
-        if ($region === null) {
-            throw new RuntimeException('Регион для развлечений не найден: '.$answer->region);
-        }
-
-        return $this->run($region, $answer->entertainment_level, [
+        $payload = [
+            'region' => $answer->region,
+            'entertainment_level' => $answer->entertainment_level,
             'total_days' => $answer->total_days,
             'total_people' => $answer->total_people,
-        ]);
+        ];
+        $amount = $this->fallbackAmountForAnswer($answer);
+
+        return [
+            'payload' => $payload,
+            'answer' => 'Database entertainment amount: '.$amount,
+            'amount' => $amount,
+        ];
     }
 
     public function fallbackAmountForAnswer(QuizAnswer $answer): float
     {
+        $stored = $this->storedAmountForAnswer($answer);
+        if ($stored !== null) {
+            return $stored;
+        }
+
         $days = max(1, (int) ($answer->total_days ?: 1));
         $people = max(1, (int) ($answer->total_people ?: ((int) $answer->travelers_count + (int) $answer->children_count)));
         $visits = $this->visitsForLevel($answer->entertainment_level, $days);
@@ -269,6 +280,68 @@ class EntertainmentGeminiService
         }
 
         return max(1, $days);
+    }
+
+    private function storedAmountForAnswer(QuizAnswer $answer): ?float
+    {
+        $region = $this->regionForAnswer($answer);
+        if ($region === null || ! Schema::hasTable('entertainment_visit_prices')) {
+            return null;
+        }
+
+        $days = max(1, (int) ($answer->total_days ?: 1));
+        $visits = $this->visitsForLevel($answer->entertainment_level, $days);
+        $adults = max(0, (int) $answer->travelers_count);
+        $children = max(0, (int) $answer->children_count);
+        if ($adults + $children <= 0) {
+            $adults = max(1, (int) $answer->total_people);
+        }
+
+        $prices = EntertainmentVisitPrice::query()
+            ->where('region_id', $region->id)
+            ->whereNotNull('adult_avg_price')
+            ->get()
+            ->keyBy('category');
+
+        if ($prices->isEmpty()) {
+            return null;
+        }
+
+        $categories = $region->entertainments()
+            ->select('category')
+            ->whereIn('category', $prices->keys()->all())
+            ->groupBy('category')
+            ->orderByRaw('MAX(rating) DESC')
+            ->orderByRaw('MAX(reviews) DESC')
+            ->limit(max(1, $visits))
+            ->pluck('category')
+            ->values();
+
+        if ($categories->isEmpty()) {
+            $categories = $prices->keys()->take(max(1, $visits))->values();
+        }
+
+        $visitTotals = [];
+        foreach ($categories as $category) {
+            $price = $prices->get($category);
+            if (! $price) {
+                continue;
+            }
+            $adultPrice = (float) $price->adult_avg_price;
+            $childPrice = $price->child_avg_price !== null ? (float) $price->child_avg_price : round($adultPrice * 0.6, 2);
+            $visitTotals[] = ($adults * $adultPrice) + ($children * $childPrice);
+        }
+
+        if ($visitTotals === []) {
+            return null;
+        }
+
+        $total = array_sum($visitTotals);
+        if ($visits > count($visitTotals)) {
+            $total += ($visits - count($visitTotals)) * (array_sum($visitTotals) / count($visitTotals));
+        }
+
+        return round($total, 2);
     }
 
     private function loadPrompt(string $name): string

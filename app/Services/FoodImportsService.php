@@ -18,12 +18,12 @@ class FoodImportsService
         'cafe',
         'coffee shop',
         'bakery',
+        'pizza restaurant',
     ];
 
     /** @var list<string> */
     public const RESTAURANT_KEYWORDS = [
         'restaurant',
-        'pizza restaurant',
         'swiss restaurant',
         'vegetarian restaurant',
         'seafood restaurant',
@@ -64,7 +64,6 @@ class FoodImportsService
     private const RESTAURANT_NAME_PARTS = [
         'restaurant',
         'ristorante',
-        'pizzeria',
         'grill',
         'steakhouse',
         'brasserie',
@@ -73,6 +72,12 @@ class FoodImportsService
         'china restaurant',
         'indian restaurant',
         'lotusblume',
+    ];
+
+    /** @var list<string> */
+    private const PIZZA_NAME_PARTS = [
+        'pizza',
+        'pizzeria',
     ];
 
     public function __construct(
@@ -342,6 +347,10 @@ class FoodImportsService
      */
     private function classificationFromItem(array $item): array
     {
+        if ($this->isPizzaPlace($item['keyword'], $item['name'])) {
+            return ['food_type' => 'cafe', 'gpt_processed' => true];
+        }
+
         if (in_array($item['keyword'], self::CAFE_KEYWORDS, true)) {
             if ($this->hasRestaurantName($item['name'])) {
                 return ['food_type' => 'restaurant', 'gpt_processed' => true];
@@ -359,6 +368,22 @@ class FoodImportsService
         }
 
         return ['food_type' => null, 'gpt_processed' => true];
+    }
+
+    private function isPizzaPlace(string $keyword, string $name): bool
+    {
+        if ($keyword === 'pizza restaurant') {
+            return true;
+        }
+
+        $name = mb_strtolower($name);
+        foreach (self::PIZZA_NAME_PARTS as $part) {
+            if (str_contains($name, $part)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function hasRestaurantName(string $name): bool
