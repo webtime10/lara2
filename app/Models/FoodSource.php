@@ -33,6 +33,9 @@ class FoodSource extends Model
         'main_course_price',
     ];
 
+    /** Количество дней, на которые AI оценивает одну продуктовую корзину в полях GROCERY_PRICE_FIELDS. */
+    public const GROCERY_BASKET_DAYS = 3;
+
     /** @var list<string> */
     public const GROCERY_PRICE_FIELDS = [
         'bread_price',

@@ -110,8 +110,9 @@ class FoodBudgetGeminiService
             $adults = max(0, (int) $answer->travelers_count);
             $children = max(0, (int) $answer->children_count);
             $adultEquivalent = max(1.0, $adults + ($children * 0.6));
+            $basketDays = FoodSource::GROCERY_BASKET_DAYS;
 
-            return round($days * $adultEquivalent * $storedGroceryPrice, 2);
+            return round(($days / $basketDays) * $adultEquivalent * $storedGroceryPrice, 2);
         }
 
         $storedVisitPrice = $this->storedVisitPriceForAnswer($answer);

@@ -65,7 +65,8 @@
 										>{{ old('korzina_magazina', $groceryPrompt ?? '') }}</textarea>
 										<small class="form-text text-muted">
 											Сохраняется в <code>budget_promt</code> как <code>korzina_magazina</code>.
-											В Gemini отдельно передаётся SOURCE TEXT JSON с кантоном, валютой и типом <code>home_cooking</code>.
+											В Gemini передаётся SOURCE TEXT JSON с кантоном, валютой, типом <code>home_cooking</code> и <code>basket_days: 3</code>.
+											AI возвращает цены <strong>продуктовой корзины на 3 дня</strong> для 1 взрослого; Laravel считает <code>(дни / 3) × сумма полей × люди</code>.
 										</small>
 									</div>
 								</div>

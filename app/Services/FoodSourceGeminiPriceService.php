@@ -190,20 +190,23 @@ Currency must be USD. Prices must be numeric decimal values or null.
 Use realistic average retail prices for the canton/region in Switzerland.
 Use common grocery store prices, not restaurant/cafe prices.
 
+Each field is the price for a 3-day supply for one adult who mainly cooks at home.
+The sum of all fields should represent a realistic 3-day grocery basket for one adult in that canton.
+
 Allowed keys: {$fields}
 Use only the allowed keys. Do not include any other fields.
 
-Meaning of keys:
-- bread_price: one loaf of bread
-- milk_price: 1 liter of milk
-- eggs_price: 10 eggs
-- chicken_price: 1 kg chicken
-- rice_price: 1 kg rice
-- pasta_grocery_price: 1 kg pasta
-- vegetables_price: 1 kg mixed vegetables
-- fruits_price: 1 kg mixed fruits
-- coffee_price: 250 g ground coffee
-- water_price: 1.5 liter bottled water
+Meaning of keys (quantities for 3 days, one adult):
+- bread_price: bread for 3 days (about 300–450 g total)
+- milk_price: 3 liters of milk
+- eggs_price: 6 eggs
+- chicken_price: meat for 3 days (about 450–600 g)
+- rice_price: rice for 3 days (about 240–360 g)
+- pasta_grocery_price: pasta for 3 days (about 300–450 g)
+- vegetables_price: vegetables for 3 days (about 600–900 g)
+- fruits_price: fruits for 3 days (about 450–750 g)
+- coffee_price: coffee for 3 days
+- water_price: 4.5 liters of bottled water (1.5 L per day)
 TXT;
     }
 
@@ -215,6 +218,7 @@ TXT;
             'region_slug' => $region->slug,
             'currency' => 'USD',
             'food_type' => FoodSource::TYPE_HOME_COOKING,
+            'basket_days' => FoodSource::GROCERY_BASKET_DAYS,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '';
     }
 
