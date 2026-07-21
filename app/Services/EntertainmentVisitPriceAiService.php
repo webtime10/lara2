@@ -130,11 +130,7 @@ class EntertainmentVisitPriceAiService
     /** @return list<string> */
     private function fallbackChain(string $selectedModel): array
     {
-        return array_values(array_unique([
-            $selectedModel,
-            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID,
-            FoodSourceGeminiPriceService::MODEL_OPENAI,
-        ]));
+        return [FoodSourceGeminiPriceService::MODEL_GEMINI_FREE];
     }
 
     /** @return array<string, string> */

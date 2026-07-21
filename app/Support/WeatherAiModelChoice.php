@@ -24,10 +24,6 @@ final class WeatherAiModelChoice
     {
         return [
             self::GEMINI_FLASH,
-            self::GEMINI_PRO,
-            self::OPENAI_GPT_4O,
-            self::OPENAI_GPT_4O_MINI,
-            self::OPENAI_GPT_54,
         ];
     }
 
@@ -35,11 +31,7 @@ final class WeatherAiModelChoice
     public static function labels(): array
     {
         return [
-            self::GEMINI_FLASH => 'Gemini Flash',
-            self::GEMINI_PRO => 'Gemini Pro',
-            self::OPENAI_GPT_4O => 'OpenAI GPT-4o',
-            self::OPENAI_GPT_4O_MINI => 'GPT-4o Mini',
-            self::OPENAI_GPT_54 => 'GPT-5.4',
+            self::GEMINI_FLASH => 'Gemini 2.5 Flash бесплатный',
         ];
     }
 

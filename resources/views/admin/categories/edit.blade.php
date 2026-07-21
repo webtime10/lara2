@@ -86,24 +86,28 @@
                                                 </div>
                                                 <div class="form-group">
                                                     <label for="description_{{ $c }}">Описание</label>
-                                                    <textarea name="description_{{ $c }}" id="description_{{ $c }}" class="form-control" rows="4">{{ old('description_'.$c, $desc->description ?? '') }}</textarea>
+                                                    <textarea name="description_{{ $c }}" id="description_{{ $c }}" class="form-control js-category-description" rows="4">{{ old('description_'.$c, $desc->description ?? '') }}</textarea>
                                                 </div>
-                                                <div class="form-group">
-                                                    <label for="meta_title_{{ $c }}">Meta title</label>
-                                                    <input type="text" name="meta_title_{{ $c }}" class="form-control" value="{{ old('meta_title_'.$c, $desc->meta_title ?? '') }}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="meta_description_{{ $c }}">Meta description</label>
-                                                    <input type="text" name="meta_description_{{ $c }}" class="form-control" value="{{ old('meta_description_'.$c, $desc->meta_description ?? '') }}">
-                                                </div>
-                                                <div class="form-group mb-0">
-                                                    <label for="meta_keyword_{{ $c }}">Meta keyword</label>
-                                                    <input type="text" name="meta_keyword_{{ $c }}" class="form-control" value="{{ old('meta_keyword_'.$c, $desc->meta_keyword ?? '') }}">
-                                                </div>
+                                                @include('admin.categories.partials.ideal-region-fields', ['c' => $c, 'desc' => $desc])
                                             </div>
                                         @endforeach
                                     </div>
                                 @endif
+
+                                <div class="form-group">
+                                    <label for="manufacturer_id">Производитель <span class="text-danger">*</span></label>
+                                    <select name="manufacturer_id" id="manufacturer_id" class="form-control @error('manufacturer_id') is-invalid @enderror" required>
+                                        <option value="">— Выберите —</option>
+                                        @foreach($manufacturers as $m)
+                                            <option value="{{ $m->id }}" {{ (string) old('manufacturer_id', $category->manufacturer_id) === (string) $m->id ? 'selected' : '' }}>
+                                                {{ $m->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('manufacturer_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
                                 <div class="form-group">
                                     <label for="parent_id">Внутри какой категории показывать</label>
@@ -139,4 +143,26 @@
         </div>
     </section>
 
+@endsection
+
+@section('scripts')
+<script>
+(function ($) {
+    $(function () {
+        $('.js-category-description').summernote({
+            height: 220,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'italic', 'underline', 'clear']],
+                ['fontname', ['fontname']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
+        });
+    });
+})(jQuery);
+</script>
 @endsection

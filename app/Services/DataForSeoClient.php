@@ -16,6 +16,14 @@ class DataForSeoClient
 
     public const GOOGLE_MAPS_URL = 'https://api.dataforseo.com/v3/serp/google/maps/live/advanced';
 
+    public const BUSINESS_LISTINGS_CATEGORIES_URL = 'https://api.dataforseo.com/v3/business_data/business_listings/categories';
+
+    public const BUSINESS_LISTINGS_LOCATIONS_URL = 'https://api.dataforseo.com/v3/business_data/business_listings/locations';
+
+    public const BUSINESS_LISTINGS_CATEGORIES_AGGREGATION_URL = 'https://api.dataforseo.com/v3/business_data/business_listings/categories_aggregation/live';
+
+    public const BUSINESS_LISTINGS_SEARCH_URL = 'https://api.dataforseo.com/v3/business_data/business_listings/search/live';
+
     public function credentialsConfigured(): bool
     {
         return $this->login() !== '' && $this->password() !== '';

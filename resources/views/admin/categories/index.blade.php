@@ -5,12 +5,12 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1>Categories - Список</h1>
+                    <h1>Категории — Список</h1>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Home</a></li>
-                        <li class="breadcrumb-item active">Categories</li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
+                        <li class="breadcrumb-item active">Категории</li>
                     </ol>
                 </div>
             </div>
@@ -23,6 +23,16 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
+                            <form id="categoriesBulkDeleteForm" method="post" action="{{ route('admin.categories.bulk-delete') }}" class="d-inline">
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="btn btn-danger"
+                                    onclick="return confirm('Удалить выбранные категории?');"
+                                >
+                                    <i class="fas fa-trash-alt"></i> Удалить
+                                </button>
+                            </form>
                             <a href="{{ route('admin.categories.create') }}" class="btn btn-primary float-right">
                                 <i class="fa fa-plus"></i>
                             </a>
@@ -32,10 +42,14 @@
                                 <table class="table table-bordered table-hover">
                                     <thead>
                                         <tr>
+                                            <th style="width: 40px">
+                                                <input type="checkbox" id="categoriesSelectAll" title="Выбрать все">
+                                            </th>
                                             <th style="width: 50px">#</th>
                                             <th>Название</th>
+                                            <th>Производитель</th>
                                             <th>Порядок</th>
-                                            <th>Статус</th>
+                                            <th>Краткое описание</th>
                                             <th>Родитель</th>
                                             <th style="width: 150px">Действия</th>
                                         </tr>
@@ -50,10 +64,20 @@
                                                     : null;
                                             @endphp
                                             <tr>
+                                                <td>
+                                                    <input
+                                                        type="checkbox"
+                                                        name="selected[]"
+                                                        value="{{ $item->id }}"
+                                                        class="category-row-checkbox"
+                                                        form="categoriesBulkDeleteForm"
+                                                    >
+                                                </td>
                                                 <td>{{ $loop->iteration }}</td>
                                                 <td>{{ $d->name ?? '—' }}</td>
+                                                <td>{{ $item->manufacturer->name ?? '—' }}</td>
                                                 <td>{{ $item->sort_order }}</td>
-                                                <td>{{ $item->status ? 'Да' : 'Нет' }}</td>
+                                                <td>{{ $d->short_description ?? '—' }}</td>
                                                 <td>{{ $pd->name ?? '—' }}</td>
                                                 <td>
                                                     <a href="{{ route('admin.categories.edit', $item->id) }}" class="btn btn-info btn-sm">
@@ -71,15 +95,11 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7" class="text-center">Нет данных</td>
+                                                <td colspan="8" class="text-center">Нет данных</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
                                 </table>
-                            </div>
-
-                            <div class="d-flex justify-content-center mt-3">
-                                {{ $categories->links() }}
                             </div>
                         </div>
                     </div>
@@ -87,4 +107,23 @@
             </div>
         </div>
     </section>
+@endsection
+
+@section('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var selectAll = document.getElementById('categoriesSelectAll');
+            var checkboxes = document.querySelectorAll('.category-row-checkbox');
+
+            if (!selectAll) {
+                return;
+            }
+
+            selectAll.addEventListener('change', function () {
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.checked = selectAll.checked;
+                });
+            });
+        });
+    </script>
 @endsection

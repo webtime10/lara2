@@ -77,14 +77,16 @@
                                                     <a href="{{ route('admin.languages.edit', $item->id) }}" class="btn btn-info btn-sm">
                                                         <i class="fas fa-pencil-alt"></i>
                                                     </a>
-                                                    <form action="{{ route('admin.languages.destroy', $item->id) }}" method="post" class="d-inline">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-danger btn-sm" 
-                                                                onclick="return confirm('Подтвердите удаление')">
-                                                            <i class="fas fa-trash-alt"></i>
-                                                        </button>
-                                                    </form>
+                                                    @unless($item->is_default)
+                                                        <form action="{{ route('admin.languages.destroy', $item->id) }}" method="post" class="d-inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="btn btn-danger btn-sm"
+                                                                    onclick="return confirm('Подтвердите удаление')">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </form>
+                                                    @endunless
                                                 </td>
                                             </tr>
                                         @empty

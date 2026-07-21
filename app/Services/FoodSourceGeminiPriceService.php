@@ -28,8 +28,6 @@ class FoodSourceGeminiPriceService
     {
         return [
             self::MODEL_GEMINI_FREE => 'Gemini 2.5 Flash бесплатный',
-            self::MODEL_GEMINI_PAID => 'Gemini 2.5 Flash платный',
-            self::MODEL_OPENAI => 'OpenAI',
         ];
     }
 
@@ -120,11 +118,7 @@ class FoodSourceGeminiPriceService
     /** @return list<string> */
     private function fallbackChain(string $selectedModel): array
     {
-        return array_values(array_unique([
-            $selectedModel,
-            self::MODEL_GEMINI_PAID,
-            self::MODEL_OPENAI,
-        ]));
+        return [self::MODEL_GEMINI_FREE];
     }
 
     private function normalizeModel(?string $model): string

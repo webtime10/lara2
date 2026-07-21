@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\CategoryDescription;
 use App\Models\Language;
+use App\Models\Manufacturer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,10 +17,10 @@ class CategoryController extends Controller
     {
         $pageTitle = 'Categories - Список';
         $defaultLanguage = Language::getDefault();
-        $categories = Category::with(['parent.descriptions', 'descriptions'])
+        $categories = Category::with(['parent.descriptions', 'descriptions', 'manufacturer'])
             ->orderBy('sort_order')
             ->orderBy('id', 'desc')
-            ->paginate(15);
+            ->get();
 
         return view('admin.categories.index', compact('categories', 'pageTitle', 'defaultLanguage'));
     }
@@ -30,14 +31,16 @@ class CategoryController extends Controller
         $languages = Language::forAdminForms();
         $defaultLanguage = Language::getDefault();
         $parentOptions = Category::treeForParentSelect($defaultLanguage, []);
+        $manufacturers = Manufacturer::query()->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.categories.create', compact('pageTitle', 'parentOptions', 'languages', 'defaultLanguage'));
+        return view('admin.categories.create', compact('pageTitle', 'parentOptions', 'languages', 'defaultLanguage', 'manufacturers'));
     }
 
     public function store(Request $request)
     {
         $request->merge([
             'parent_id' => $request->filled('parent_id') ? (int) $request->parent_id : null,
+            'manufacturer_id' => $request->filled('manufacturer_id') ? (int) $request->manufacturer_id : null,
         ]);
 
         $languages = Language::forAdminForms();
@@ -48,6 +51,7 @@ class CategoryController extends Controller
 
         $rules = [
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -56,9 +60,7 @@ class CategoryController extends Controller
             $suffix = $language->code;
             $rules['name_'.$suffix] = $language->is_default ? 'required|string|max:255' : 'nullable|string|max:255';
             $rules['description_'.$suffix] = 'nullable|string';
-            $rules['meta_title_'.$suffix] = 'nullable|string|max:255';
-            $rules['meta_description_'.$suffix] = 'nullable|string|max:255';
-            $rules['meta_keyword_'.$suffix] = 'nullable|string|max:255';
+            $rules = array_merge($rules, $this->idealRegionFieldRules($suffix));
         }
 
         $request->validate($rules);
@@ -66,6 +68,7 @@ class CategoryController extends Controller
         DB::transaction(function () use ($request, $languages) {
             $category = Category::create([
                 'parent_id' => $request->input('parent_id'),
+                'manufacturer_id' => $request->input('manufacturer_id'),
                 'image' => null,
                 'top' => false,
                 'column' => 0,
@@ -80,15 +83,16 @@ class CategoryController extends Controller
                     continue;
                 }
 
-                CategoryDescription::create([
+                CategoryDescription::create(array_merge([
                     'category_id' => $category->id,
                     'language_id' => $language->id,
                     'name' => $name,
+                    'slug' => CategoryDescription::uniqueSlugForLanguage($name, (int) $language->id),
                     'description' => $request->input('description_'.$suffix),
-                    'meta_title' => $request->input('meta_title_'.$suffix),
-                    'meta_description' => $request->input('meta_description_'.$suffix),
-                    'meta_keyword' => $request->input('meta_keyword_'.$suffix),
-                ]);
+                    'meta_title' => null,
+                    'meta_description' => null,
+                    'meta_keyword' => null,
+                ], $this->idealRegionFieldValues($request, $suffix)));
             }
 
             Category::rebuildPaths();
@@ -106,14 +110,16 @@ class CategoryController extends Controller
         $defaultLanguage = Language::getDefault();
         $excludeIds = array_merge([(int) $category->id], $category->descendantIdList());
         $parentOptions = Category::treeForParentSelect($defaultLanguage, $excludeIds);
+        $manufacturers = Manufacturer::query()->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.categories.edit', compact('category', 'pageTitle', 'parentOptions', 'languages', 'defaultLanguage'));
+        return view('admin.categories.edit', compact('category', 'pageTitle', 'parentOptions', 'languages', 'defaultLanguage', 'manufacturers'));
     }
 
     public function update(Request $request, string $id)
     {
         $request->merge([
             'parent_id' => $request->filled('parent_id') ? (int) $request->parent_id : null,
+            'manufacturer_id' => $request->filled('manufacturer_id') ? (int) $request->manufacturer_id : null,
         ]);
 
         $category = Category::with('descriptions')->findOrFail($id);
@@ -130,6 +136,7 @@ class CategoryController extends Controller
                 'exists:categories,id',
                 Rule::notIn(array_merge([(int) $category->id], $category->descendantIdList())),
             ],
+            'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -138,9 +145,7 @@ class CategoryController extends Controller
             $suffix = $language->code;
             $rules['name_'.$suffix] = $language->is_default ? 'required|string|max:255' : 'nullable|string|max:255';
             $rules['description_'.$suffix] = 'nullable|string';
-            $rules['meta_title_'.$suffix] = 'nullable|string|max:255';
-            $rules['meta_description_'.$suffix] = 'nullable|string|max:255';
-            $rules['meta_keyword_'.$suffix] = 'nullable|string|max:255';
+            $rules = array_merge($rules, $this->idealRegionFieldRules($suffix));
         }
 
         $request->validate($rules);
@@ -148,6 +153,7 @@ class CategoryController extends Controller
         DB::transaction(function () use ($request, $languages, $category) {
             $category->update([
                 'parent_id' => $request->input('parent_id'),
+                'manufacturer_id' => $request->input('manufacturer_id'),
                 'top' => false,
                 'column' => 0,
                 'sort_order' => (int) $request->input('sort_order', 0),
@@ -171,13 +177,18 @@ class CategoryController extends Controller
                         'category_id' => $category->id,
                         'language_id' => $language->id,
                     ],
-                    [
+                    array_merge([
                         'name' => $name,
+                        'slug' => CategoryDescription::uniqueSlugForLanguage(
+                            $name,
+                            (int) $language->id,
+                            (int) $category->id
+                        ),
                         'description' => $request->input('description_'.$suffix),
-                        'meta_title' => $request->input('meta_title_'.$suffix),
-                        'meta_description' => $request->input('meta_description_'.$suffix),
-                        'meta_keyword' => $request->input('meta_keyword_'.$suffix),
-                    ]
+                        'meta_title' => null,
+                        'meta_description' => null,
+                        'meta_keyword' => null,
+                    ], $this->idealRegionFieldValues($request, $suffix))
                 );
             }
 
@@ -196,5 +207,70 @@ class CategoryController extends Controller
 
         return redirect()->route('admin.categories.index')
             ->with('success', 'Категория успешно удалена');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $ids = collect((array) $request->input('selected', []))
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return redirect()->route('admin.categories.index')
+                ->with('error', 'Выберите категории для удаления.');
+        }
+
+        Category::query()->whereIn('id', $ids)->delete();
+        Category::rebuildPaths();
+
+        return redirect()->route('admin.categories.index')
+            ->with('success', 'Удалено категорий: '.$ids->count());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function idealRegionFields(): array
+    {
+        $config = (array) config('ideal_region_category_fields', []);
+        $fields = $config['fields'] ?? $config;
+
+        return array_values(array_filter(
+            (array) $fields,
+            fn ($field) => is_string($field) && str_starts_with($field, 'step')
+        ));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function idealRegionFieldRules(string $suffix): array
+    {
+        $rules = [];
+        foreach ($this->idealRegionFields() as $field) {
+            if (str_ends_with($field, '_description')) {
+                $rules[$field.'_'.$suffix] = 'nullable|string';
+            } else {
+                $rules[$field.'_'.$suffix] = 'nullable|string|max:255';
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function idealRegionFieldValues(Request $request, string $suffix): array
+    {
+        $values = [];
+        foreach ($this->idealRegionFields() as $field) {
+            $raw = $request->input($field.'_'.$suffix);
+            $values[$field] = is_string($raw) ? $raw : null;
+        }
+
+        return $values;
     }
 }

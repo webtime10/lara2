@@ -14,6 +14,7 @@ class Category extends Model
     protected $fillable = [
         'image',
         'parent_id',
+        'manufacturer_id',
         'top',
         'column',
         'sort_order',
@@ -28,6 +29,11 @@ class Category extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'parent_id');
+    }
+
+    public function manufacturer(): BelongsTo
+    {
+        return $this->belongsTo(Manufacturer::class);
     }
 
     public function children(): HasMany

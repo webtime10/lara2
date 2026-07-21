@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Plugins\BudgetController;
+use App\Http\Controllers\Api\Plugins\IdealRegionController;
 use App\Http\Controllers\Api\Plugins\WeatherController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,4 +21,8 @@ Route::prefix('plugins')->group(function () {
     Route::get('budget/status/{quizAnswerId}', [BudgetController::class, 'status'])
         ->middleware('plugin.api:budget')
         ->name('api.plugins.budget.status');
+
+    Route::post('ideal_region', [IdealRegionController::class, 'store'])
+        ->middleware('plugin.api:ideal_region')
+        ->name('api.plugins.ideal_region.store');
 });

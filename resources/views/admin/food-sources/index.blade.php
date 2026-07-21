@@ -35,15 +35,12 @@
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label>Модель для получения цен</label>
-                            <select id="foodSourcesAiModel" class="form-control">
-                                @foreach ($aiModelLabels as $modelKey => $modelLabel)
-                                    <option value="{{ $modelKey }}" @selected($modelKey === $defaultAiModel)>
-                                        {{ $modelLabel }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <p class="form-control-plaintext mb-0">
+                                <strong>{{ $aiModelLabels[$defaultAiModel] ?? 'Gemini 2.5 Flash бесплатный' }}</strong>
+                            </p>
+                            <input type="hidden" id="foodSourcesAiModel" value="{{ $defaultAiModel }}">
                             <small class="form-text text-muted">
-                                Этот выбор используется для кнопок Gemini по всем кантонам и по одному кантону.
+                                Используется для кнопок Gemini по всем кантонам и по одному кантону.
                             </small>
                         </div>
                     </div>
@@ -204,14 +201,14 @@
     var syncUrlBase = @json(url('/admin/food-sources/gemini'));
     var running = false;
 
+    var defaultAiModelLabel = @json($aiModelLabels[$defaultAiModel] ?? 'Gemini 2.5 Flash бесплатный');
+
     function selectedModel() {
         return aiModelEl ? aiModelEl.value : @json($defaultAiModel);
     }
 
     function selectedModelLabel() {
-        return aiModelEl && aiModelEl.options[aiModelEl.selectedIndex]
-            ? aiModelEl.options[aiModelEl.selectedIndex].text.trim()
-            : 'Gemini';
+        return defaultAiModelLabel;
     }
 
     function postJson(url) {

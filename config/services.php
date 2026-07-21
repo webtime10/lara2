@@ -86,6 +86,12 @@ return [
                 'ttl_hours' => (int) env('BUDGET_CACHE_TTL_HOURS', 48),
             ],
         ],
+        'ideal_region' => [
+            'api_key' => env('PLUGIN_IDEAL_REGION_API_KEY', env('PLUGIN_API_KEY', env('WORDPRESS_WEBHOOK_SECRET', ''))),
+            'manufacturer_id' => env('IDEAL_REGION_MANUFACTURER_ID'),
+            'manufacturer_name' => env('IDEAL_REGION_MANUFACTURER_NAME', 'Швейцария'),
+            'min_match_score' => (int) env('IDEAL_REGION_MIN_MATCH_SCORE', 9),
+        ],
     ],
 
 ];

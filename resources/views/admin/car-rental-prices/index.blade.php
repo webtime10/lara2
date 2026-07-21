@@ -23,13 +23,10 @@
                     <div class="row align-items-end">
                         <div class="col-md-4">
                             <label>Модель для получения цен авто</label>
-                            <select id="carRentalAiModel" class="form-control">
-                                @foreach ($aiModelLabels as $modelKey => $modelLabel)
-                                    <option value="{{ $modelKey }}" @selected($modelKey === $defaultAiModel)>
-                                        {{ $modelLabel }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <p class="form-control-plaintext mb-0">
+                                <strong>{{ $aiModelLabels[$defaultAiModel] ?? 'Gemini 2.5 Flash бесплатный' }}</strong>
+                            </p>
+                            <input type="hidden" id="carRentalAiModel" value="{{ $defaultAiModel }}">
                         </div>
                         <div class="col-md-8">
                             <button type="button" id="carRentalSyncAllBtn" class="btn btn-warning">
@@ -144,14 +141,14 @@
     var regions = @json($regionsPayload);
     var running = false;
 
+    var defaultAiModelLabel = @json($aiModelLabels[$defaultAiModel] ?? 'Gemini 2.5 Flash бесплатный');
+
     function selectedModel() {
         return modelEl ? modelEl.value : @json($defaultAiModel);
     }
 
     function selectedModelLabel() {
-        return modelEl && modelEl.options[modelEl.selectedIndex]
-            ? modelEl.options[modelEl.selectedIndex].text.trim()
-            : 'AI';
+        return defaultAiModelLabel;
     }
 
     function postJson(url) {

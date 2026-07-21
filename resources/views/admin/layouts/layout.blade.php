@@ -195,7 +195,7 @@
                     <li class="nav-item">
                         <a href="{{ route('admin.categories.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-tags"></i>
-                            <p>Categories</p>
+                            <p>Категории</p>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -213,7 +213,7 @@
                     <li class="nav-item">
                         <a href="{{ route('admin.languages.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-language"></i>
-                            <p>Languages</p>
+                            <p>Языки</p>
                         </a>
                     </li>
                     <li class="nav-item has-treeview">
@@ -364,15 +364,27 @@
                         </ul>
                     </li>
                     <li class="nav-item">
+                        <a href="{{ route('admin.bern-tourist.index') }}" class="nav-link">
+                            <i class="nav-icon fas fa-mountain"></i>
+                            <p>Bern Tourist (BL)</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.dataforseo-aggregation.index') }}" class="nav-link">
+                            <i class="nav-icon fas fa-chart-bar"></i>
+                            <p>DataForSEO Aggregation</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="{{ route('admin.roles.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
-                            <p>Roles</p>
+                            <p>Роли</p>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="{{ route('admin.users.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-users"></i>
-                            <p>Users</p>
+                            <p>Пользователи</p>
                         </a>
                     </li>
                 </ul>

@@ -33,14 +33,11 @@
                             <div id="weatherPromptAlert" class="alert d-none" role="alert"></div>
 
                             <div class="form-group">
-                                <label for="weather_ai_model">Модель AI для калькулятора</label>
-                                <select id="weather_ai_model" name="weather_ai_model" class="form-control" style="max-width: 420px;">
-                                    @foreach($aiModelChoices as $key => $label)
-                                        <option value="{{ $key }}" {{ ($aiModel ?? '') === $key ? 'selected' : '' }}>
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <label>Модель AI для калькулятора</label>
+                                <p class="form-control-plaintext mb-0">
+                                    <strong>{{ $aiModelChoices['gemini-flash'] ?? 'Gemini 2.5 Flash бесплатный' }}</strong>
+                                </p>
+                                <input type="hidden" id="weather_ai_model" name="weather_ai_model" value="gemini-flash">
                                 <small class="form-text text-muted">
                                     В промте можно использовать плейсхолдеры:
                                     <code>{month_name}</code>, <code>{region_name}</code>, <code>{language}</code>

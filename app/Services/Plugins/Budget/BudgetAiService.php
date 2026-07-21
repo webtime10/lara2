@@ -270,11 +270,7 @@ TXT;
     /** @return list<string> */
     private function fallbackModelChain(string $selectedModel): array
     {
-        return array_values(array_unique([
-            $selectedModel,
-            BudgetAiModelChoice::GEMINI_PRO,
-            BudgetAiModelChoice::OPENAI_GPT_4O_MINI,
-        ]));
+        return [BudgetAiModelChoice::GEMINI_FLASH];
     }
 
     /**

@@ -354,11 +354,7 @@ TXT;
     /** @return list<string> */
     private function fallbackModelChain(string $selectedModel): array
     {
-        return array_values(array_unique([
-            $selectedModel,
-            WeatherAiModelChoice::GEMINI_PRO,
-            WeatherAiModelChoice::OPENAI_GPT_4O_MINI,
-        ]));
+        return [WeatherAiModelChoice::GEMINI_FLASH];
     }
 
     /**

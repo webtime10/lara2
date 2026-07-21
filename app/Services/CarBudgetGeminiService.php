@@ -107,8 +107,6 @@ class CarBudgetGeminiService
     {
         return [
             FoodSourceGeminiPriceService::MODEL_GEMINI_FREE,
-            FoodSourceGeminiPriceService::MODEL_GEMINI_PAID,
-            FoodSourceGeminiPriceService::MODEL_OPENAI,
         ];
     }
 
