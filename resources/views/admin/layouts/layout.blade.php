@@ -429,18 +429,6 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('admin.bern-tourist.index') }}" class="nav-link">
-                            <i class="nav-icon fas fa-mountain"></i>
-                            <p>Bern Tourist (BL)</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('admin.dataforseo-aggregation.index') }}" class="nav-link">
-                            <i class="nav-icon fas fa-chart-bar"></i>
-                            <p>DataForSEO Aggregation</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a href="{{ route('admin.roles.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
                             <p>Роли</p>

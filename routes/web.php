@@ -25,8 +25,6 @@ use App\Http\Controllers\Admin\ZurichEntertainmentController;
 use App\Http\Controllers\Admin\ZurichHotelsController;
 use App\Http\Controllers\Admin\ZurichPlacesTestController;
 use App\Http\Controllers\Admin\ZurichRestaurantsController;
-use App\Http\Controllers\Admin\BernTouristController;
-use App\Http\Controllers\Admin\DataForSeoAggregationController;
 use App\Http\Controllers\Admin\WeatherController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
@@ -111,17 +109,6 @@ Route::prefix('admin')
             Route::get('restaurants', [ZurichRestaurantsController::class, 'index'])->name('restaurants');
             Route::post('restaurants/fetch', [ZurichRestaurantsController::class, 'fetch'])->name('restaurants.fetch');
             Route::get('places', [ZurichPlacesTestController::class, 'index'])->name('places');
-        });
-
-        Route::prefix('bern-tourist')->name('bern-tourist.')->group(function () {
-            Route::get('/', [BernTouristController::class, 'index'])->name('index');
-            Route::post('collect', [BernTouristController::class, 'collect'])->name('collect');
-        });
-
-        Route::prefix('dataforseo-aggregation')->name('dataforseo-aggregation.')->group(function () {
-            Route::get('/', [DataForSeoAggregationController::class, 'index'])->name('index');
-            Route::post('fetch', [DataForSeoAggregationController::class, 'fetch'])->name('fetch');
-            Route::get('runs/{run}', [DataForSeoAggregationController::class, 'show'])->name('show');
         });
 
         // Ресурсы
