@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $fields = (array) config('ideal_region_category_fields', []);
+        $fields = (array) config('ideal_region_category_fields.fields', []);
 
         foreach ($fields as $field) {
             if (Schema::hasColumn('category_descriptions', $field)) {
@@ -27,7 +27,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $fields = (array) config('ideal_region_category_fields', []);
+        $fields = (array) config('ideal_region_category_fields.fields', []);
         $existing = array_values(array_filter(
             $fields,
             fn ($field) => Schema::hasColumn('category_descriptions', $field)

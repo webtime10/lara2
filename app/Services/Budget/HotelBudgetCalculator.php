@@ -138,14 +138,13 @@ extra = +20%
 
     private function roomPriceMultiplier(QuizAnswer $answer): float
     {
-        // travelers_count — сколько всего путешественников выбрали в форме.
+        // travelers_count — взрослые (на Lara2 уже total − дети).
         $travelers = max(1, (int) $answer->travelers_count);
 
-        // children_count — сколько детей выбрали отдельно.
+        // children_count — дети среди общего числа едущих.
         $children = max(0, (int) $answer->children_count);
 
-        // В текущих данных travelers_count уже означает взрослых/путешественников,
-        // а children_count приходит отдельным полем. Поэтому взрослых берём напрямую.
+        // Взрослые берём из travelers_count; дети — отдельным полем.
         $adults = $travelers;
 
         // Взрослые живут по 2 человека в двухместном номере.

@@ -15,7 +15,7 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $pageTitle = 'Categories - Список';
+        $pageTitle = 'Категории';
         $defaultLanguage = Language::getDefault();
         $categories = Category::with(['parent.descriptions', 'descriptions', 'manufacturer'])
             ->orderBy('sort_order')
@@ -27,7 +27,7 @@ class CategoryController extends Controller
 
     public function create()
     {
-        $pageTitle = 'Categories - Создание';
+        $pageTitle = 'Категории — новый регион';
         $languages = Language::forAdminForms();
         $defaultLanguage = Language::getDefault();
         $parentOptions = Category::treeForParentSelect($defaultLanguage, []);
@@ -99,12 +99,12 @@ class CategoryController extends Controller
         });
 
         return redirect()->route('admin.categories.index')
-            ->with('success', 'Категория успешно создана');
+            ->with('success', 'Регион успешно создан');
     }
 
     public function edit(string $id)
     {
-        $pageTitle = 'Categories - Редактирование';
+        $pageTitle = 'Категории — редактирование региона';
         $category = Category::with('descriptions')->findOrFail($id);
         $languages = Language::forAdminForms();
         $defaultLanguage = Language::getDefault();
@@ -196,7 +196,7 @@ class CategoryController extends Controller
         });
 
         return redirect()->route('admin.categories.index')
-            ->with('success', 'Категория успешно обновлена');
+            ->with('success', 'Регион успешно обновлён');
     }
 
     public function destroy(string $id)
@@ -206,7 +206,7 @@ class CategoryController extends Controller
         Category::rebuildPaths();
 
         return redirect()->route('admin.categories.index')
-            ->with('success', 'Категория успешно удалена');
+            ->with('success', 'Регион успешно удалён');
     }
 
     public function bulkDelete(Request $request)
@@ -219,14 +219,14 @@ class CategoryController extends Controller
 
         if ($ids->isEmpty()) {
             return redirect()->route('admin.categories.index')
-                ->with('error', 'Выберите категории для удаления.');
+                ->with('error', 'Выберите регионы для удаления.');
         }
 
         Category::query()->whereIn('id', $ids)->delete();
         Category::rebuildPaths();
 
         return redirect()->route('admin.categories.index')
-            ->with('success', 'Удалено категорий: '.$ids->count());
+            ->with('success', 'Удалено регионов: '.$ids->count());
     }
 
     /**

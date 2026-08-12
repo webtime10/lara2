@@ -5,11 +5,12 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1>Категории — Список</h1>
+                    <h1>Категории</h1>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Ваш идеальный регион</a></li>
                         <li class="breadcrumb-item active">Категории</li>
                     </ol>
                 </div>
@@ -28,7 +29,7 @@
                                 <button
                                     type="submit"
                                     class="btn btn-danger"
-                                    onclick="return confirm('Удалить выбранные категории?');"
+                                    onclick="return confirm('Удалить выбранные регионы?');"
                                 >
                                     <i class="fas fa-trash-alt"></i> Удалить
                                 </button>

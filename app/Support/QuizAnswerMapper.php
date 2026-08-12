@@ -29,12 +29,27 @@ class QuizAnswerMapper
         $budgetPriority = is_array($catalog['budget_priority'] ?? null) ? $catalog['budget_priority'] : [];
 
         $region = trim((string) ($regionBlock['region'] ?? ''));
-        $travelersCount = (int) ($travelers['quantity'] ?? 0);
-        $travelersCount = max(0, min(255, $travelersCount));
 
-        $childrenCount = (int) ($children['quantity'] ?? 0);
-        $childrenCount = max(0, min(255, $childrenCount));
-        $totalPeople = max(0, min(65535, $travelersCount + $childrenCount));
+        // WP: travelers.quantity после снимка = взрослые; catalog.total_people = всего (с детьми).
+        // Fallback: если total_people нет — старая схема adults+children.
+        $hasChildren = strtolower(trim((string) ($children['hasChildren'] ?? ''))) === 'da';
+        $childrenCount = $hasChildren ? max(0, min(255, (int) ($children['quantity'] ?? 0))) : 0;
+
+        $explicitTotal = (int) ($catalog['total_people'] ?? 0);
+        $adultsFromCatalog = (int) ($catalog['adults_count'] ?? ($travelers['quantity'] ?? 0));
+        $adultsFromCatalog = max(0, min(255, $adultsFromCatalog));
+
+        if ($explicitTotal > 0) {
+            $totalPeople = max(0, min(65535, $explicitTotal));
+            if ($childrenCount > $totalPeople) {
+                $childrenCount = $totalPeople;
+            }
+            $travelersCount = max(0, min(255, $totalPeople - $childrenCount));
+        } else {
+            // Совместимость со старыми заявками: quantity уже взрослые.
+            $travelersCount = $adultsFromCatalog;
+            $totalPeople = max(0, min(65535, $travelersCount + $childrenCount));
+        }
 
         $childrenAges = [];
         if (! empty($children['ages']) && is_array($children['ages'])) {
@@ -54,7 +69,7 @@ class QuizAnswerMapper
             'trip_months' => self::tripMonths($tripDates),
             'travelers_count' => $travelersCount,
             'children_count' => $childrenCount,
-            // Общее количество людей: взрослые/путешественники + дети.
+            // Общее количество людей: всего в поездке (взрослые + дети).
             'total_people' => $totalPeople,
             'children_ages' => $childrenAges !== [] ? $childrenAges : null,
             'region' => $region !== '' ? $region : null,

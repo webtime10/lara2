@@ -242,7 +242,7 @@ class FoodVisitPriceAiService
         }
 
         throw new RuntimeException(
-            'Промт для цен питания не задан. Заполните его в админке: Промты WP → Budget → '
+            'Промт для цен питания не задан. Заполните его в админке: Промты → Швейцария → Бюджет → '
             .(FoodVisitPrice::typeLabels()[$foodType] ?? $foodType).'.'
         );
     }

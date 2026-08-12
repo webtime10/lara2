@@ -1,152 +1,141 @@
 <?php
 
 /**
- * Ideal Region fields for category_descriptions.
- * Without _description → text input; with _description → textarea.
+ * Ideal Region — поля категорий (оценки региона по вариантам квиза).
+ *
+ * Без суффикса _description → string(255) input.
+ * С суффиксом _description → longText textarea.
+ *
+ * Порядок слотов = номер варианта в API (slot 1, 2, 3…).
  */
+$steps = [
+    'step1' => 'Когда вы планируете поездку?',
+    'step2' => 'Какова продолжительность вашего путешествия?',
+    'step3' => 'Кто входит в состав вашей группы?',
+    'step4' => 'Каким транспортом вы планируете передвигаться?',
+    'step5' => 'Какая природа и атмосфера вас вдохновляют?',
+    'step6' => 'На каких занятиях вы хотите сделать главный акцент?',
+    'step7' => 'Какой ценовой формат поездки вы рассматриваете?',
+    'step8' => 'Есть ли у вас специфические пожелания или ограничения?',
+];
+
+$step_slots = [
+    'step1' => ['vesnoy', 'letom', 'osenyu', 'zimoy'],
+    'step2' => ['dnya_1_2', 'dnya_3_4', 'dney_5_7', 'dney_8_10', 'bolee_10_dney'],
+    'step3' => ['solo', 'para', 'kompaniya_druzei', 'semya_do_6', 'semya_ot_7'],
+    'step4' => ['obshchestvennyy_transport', 'arendovannyy_avtomobil', 'sochetanie'],
+    'step5' => [
+        'vysokogornye_alpy',
+        'ozera_vodopady',
+        'sredizemnomorskiy_vayb',
+        'alpiyskie_luga',
+        'istoricheskie_goroda',
+        'vinodelcheskie_terrasy',
+    ],
+    'step6' => [
+        'peshie_progulki',
+        'gornye_lyzhi',
+        'panoramnye_poezda',
+        'ekskursii_muzei',
+        'gastronomiya',
+        'spa_ozdorovlenie',
+    ],
+    'step7' => ['byudzhetnyy', 'standartnyy', 'povyshennyy_komfort', 'premialnyy'],
+    'step8' => [
+        'legkiy_marshrut',
+        'vizitnye_kartochki',
+        'zashchita_ot_nepogody',
+        'uedinennost',
+        'prostaya_logistika',
+        'net_pozhelaniy',
+    ],
+];
+
+$option_titles = [
+    'step1_vesnoy' => 'Весной',
+    'step1_letom' => 'Летом',
+    'step1_osenyu' => 'Осенью',
+    'step1_zimoy' => 'Зимой',
+
+    'step2_dnya_1_2' => '1–2 дня',
+    'step2_dnya_3_4' => '3–4 дня',
+    'step2_dney_5_7' => '5–7 дней',
+    'step2_dney_8_10' => '8–10 дней',
+    'step2_bolee_10_dney' => 'Более 10 дней',
+
+    'step3_solo' => 'Соло-путешественник',
+    'step3_para' => 'Пара',
+    'step3_kompaniya_druzei' => 'Компания друзей',
+    'step3_semya_do_6' => 'Семья с детьми до 6 лет',
+    'step3_semya_ot_7' => 'Семья с детьми от 7 лет / подростками',
+
+    'step4_obshchestvennyy_transport' => 'Общественный транспорт',
+    'step4_arendovannyy_avtomobil' => 'Арендованный автомобиль',
+    'step4_sochetanie' => 'Сочетание автомобиля и общественного транспорта',
+
+    'step5_vysokogornye_alpy' => 'Высокогорные Альпы',
+    'step5_ozera_vodopady' => 'Альпийские озера и водопады',
+    'step5_sredizemnomorskiy_vayb' => 'Средиземноморский вайб',
+    'step5_alpiyskie_luga' => 'Альпийские луга и деревни',
+    'step5_istoricheskie_goroda' => 'Исторические старые города',
+    'step5_vinodelcheskie_terrasy' => 'Винодельческие террасы и фермы',
+
+    'step6_peshie_progulki' => 'Пешие прогулки и хайкинг',
+    'step6_gornye_lyzhi' => 'Горные лыжи и зимний спорт',
+    'step6_panoramnye_poezda' => 'Панорамные поезда и подъемники',
+    'step6_ekskursii_muzei' => 'Музеи, галереи и замки',
+    'step6_gastronomiya' => 'Гастрономический туризм',
+    'step6_spa_ozdorovlenie' => 'СПА и оздоровление',
+
+    'step7_byudzhetnyy' => 'Бюджетный',
+    'step7_standartnyy' => 'Стандартный',
+    'step7_povyshennyy_komfort' => 'Повышенный комфорт',
+    'step7_premialnyy' => 'Премиальный',
+
+    'step8_legkiy_marshrut' => 'Легкий маршрут',
+    'step8_vizitnye_kartochki' => 'Главные визитные карточки',
+    'step8_zashchita_ot_nepogody' => 'Защищенность от непогоды',
+    'step8_uedinennost' => 'Уединенность',
+    'step8_prostaya_logistika' => 'Простая логистика',
+    'step8_net_pozhelaniy' => 'Дополнительных пожеланий нет',
+];
+
+$labels = [];
+$fields = [];
+
+foreach ($step_slots as $stepKey => $slots) {
+    foreach ($slots as $slot) {
+        $field = $stepKey.'_'.$slot;
+        $desc = $field.'_description';
+        $title = $option_titles[$field] ?? $slot;
+        $labels[$field] = $title;
+        $labels[$desc] = $title.' — описание';
+        $fields[] = $field;
+        $fields[] = $desc;
+    }
+}
+
 return [
+    'steps' => $steps,
+    'step_slots' => $step_slots,
+    'option_titles' => $option_titles,
+    'labels' => $labels,
+    'fields' => $fields,
+
     /**
-     * Порядок вариантов на карточке шага (слот 1, 2, 3… → ключ поля без префикса stepN_).
-     * step1: 1 — горы, 2 — водопады, 3 — озёра, 4 — города.
-     * step2: 1 — гулять, 2 — отдыхать, 3 — развлечения, 4 — рестораны.
+     * Подсказки по правилам UI квиза (логика выбора на WP; в админке Laravel — только оценки).
      */
-    'step_slots' => [
-        'step1' => ['gory', 'vodopady', 'ozera', 'goroda'],
-        'step2' => ['gulyat', 'otdyh', 'razvlecheniya', 'restorany'],
-        'step3' => ['aktivnyi', 'srednii', 'spokoinyi'],
-        'step4' => ['kultura', 'eda', 'komfort', 'priroda'],
-        'step5' => ['odin', 'druzya', 'semya', 'para'],
-        'step6' => ['vkusnaya_eda', 'krasivye_vidy', 'vpechatleniya', 'otdohnut'],
-        'step7' => ['parki', 'muzei', 'progulki', 'shopping_razvlecheniya'],
-    ],
-
-    'steps' => [
-        'step1' => 'Какой пейзаж вам нравится',
-        'step2' => 'Что вам ближе в отдыхе',
-        'step3' => 'Какой темп вам подходит',
-        'step4' => 'Что для вас важнее',
-        'step5' => 'С кем вы путешествуете',
-        'step6' => 'Что вы хотите от поездки',
-        'step7' => 'Что вам интереснее',
-    ],
-
-    'labels' => [
-        'step1_goroda' => 'Города',
-        'step1_goroda_description' => 'Города — описание',
-        'step1_ozera' => 'Озёра',
-        'step1_ozera_description' => 'Озёра — описание',
-        'step1_vodopady' => 'Водопады',
-        'step1_vodopady_description' => 'Водопады — описание',
-        'step1_gory' => 'Горы',
-        'step1_gory_description' => 'Горы — описание',
-
-        'step2_restorany' => 'Рестораны',
-        'step2_restorany_description' => 'Рестораны — описание',
-        'step2_razvlecheniya' => 'Развлечения',
-        'step2_razvlecheniya_description' => 'Развлечения — описание',
-        'step2_otdyh' => 'Отдых',
-        'step2_otdyh_description' => 'Отдых — описание',
-        'step2_gulyat' => 'Гулять',
-        'step2_gulyat_description' => 'Гулять — описание',
-
-        'step3_aktivnyi' => 'Активный',
-        'step3_aktivnyi_description' => 'Активный — описание',
-        'step3_srednii' => 'Средний',
-        'step3_srednii_description' => 'Средний — описание',
-        'step3_spokoinyi' => 'Спокойный',
-        'step3_spokoinyi_description' => 'Спокойный — описание',
-
-        'step4_kultura' => 'Культура',
-        'step4_kultura_description' => 'Культура — описание',
-        'step4_eda' => 'Еда',
-        'step4_eda_description' => 'Еда — описание',
-        'step4_komfort' => 'Комфорт',
-        'step4_komfort_description' => 'Комфорт — описание',
-        'step4_priroda' => 'Природа',
-        'step4_priroda_description' => 'Природа — описание',
-
-        'step5_odin' => 'Один',
-        'step5_odin_description' => 'Один — описание',
-        'step5_druzya' => 'Друзья',
-        'step5_druzya_description' => 'Друзья — описание',
-        'step5_semya' => 'Семья',
-        'step5_semya_description' => 'Семья — описание',
-        'step5_para' => 'Пара',
-        'step5_para_description' => 'Пара — описание',
-
-        'step6_vkusnaya_eda' => 'Вкусная еда',
-        'step6_vkusnaya_eda_description' => 'Вкусная еда — описание',
-        'step6_krasivye_vidy' => 'Красивые виды',
-        'step6_krasivye_vidy_description' => 'Красивые виды — описание',
-        'step6_vpechatleniya' => 'Впечатления',
-        'step6_vpechatleniya_description' => 'Впечатления — описание',
-        'step6_otdohnut' => 'Отдохнуть',
-        'step6_otdohnut_description' => 'Отдохнуть — описание',
-
-        'step7_parki' => 'Парки',
-        'step7_parki_description' => 'Парки — описание',
-        'step7_muzei' => 'Музеи',
-        'step7_muzei_description' => 'Музеи — описание',
-        'step7_progulki' => 'Прогулки',
-        'step7_progulki_description' => 'Прогулки — описание',
-        'step7_shopping_razvlecheniya' => 'Шоппинг и развлечения',
-        'step7_shopping_razvlecheniya_description' => 'Шоппинг и развлечения — описание',
-    ],
-
-    'fields' => [
-        'step1_goroda',
-        'step1_goroda_description',
-        'step1_ozera',
-        'step1_ozera_description',
-        'step1_vodopady',
-        'step1_vodopady_description',
-        'step1_gory',
-        'step1_gory_description',
-        'step2_restorany',
-        'step2_restorany_description',
-        'step2_razvlecheniya',
-        'step2_razvlecheniya_description',
-        'step2_otdyh',
-        'step2_otdyh_description',
-        'step2_gulyat',
-        'step2_gulyat_description',
-        'step3_aktivnyi',
-        'step3_aktivnyi_description',
-        'step3_srednii',
-        'step3_srednii_description',
-        'step3_spokoinyi',
-        'step3_spokoinyi_description',
-        'step4_kultura',
-        'step4_kultura_description',
-        'step4_eda',
-        'step4_eda_description',
-        'step4_komfort',
-        'step4_komfort_description',
-        'step4_priroda',
-        'step4_priroda_description',
-        'step5_odin',
-        'step5_odin_description',
-        'step5_druzya',
-        'step5_druzya_description',
-        'step5_semya',
-        'step5_semya_description',
-        'step5_para',
-        'step5_para_description',
-        'step6_vkusnaya_eda',
-        'step6_vkusnaya_eda_description',
-        'step6_krasivye_vidy',
-        'step6_krasivye_vidy_description',
-        'step6_vpechatleniya',
-        'step6_vpechatleniya_description',
-        'step6_otdohnut',
-        'step6_otdohnut_description',
-        'step7_parki',
-        'step7_parki_description',
-        'step7_muzei',
-        'step7_muzei_description',
-        'step7_progulki',
-        'step7_progulki_description',
-        'step7_shopping_razvlecheniya',
-        'step7_shopping_razvlecheniya_description',
+    'selection_rules' => [
+        'step1' => ['max' => 1],
+        'step2' => ['max' => 1],
+        'step3' => ['max' => 1],
+        'step4' => ['max' => 1],
+        'step5' => ['max' => 2],
+        'step6' => ['max' => 2],
+        'step7' => ['max' => 1],
+        'step8' => [
+            'max' => 3,
+            'exclusive_slot' => 'net_pozhelaniy',
+        ],
     ],
 ];

@@ -51,7 +51,7 @@ class BudgetPromptController extends Controller
         );
 
         return view('admin.prompts-wp.budget', [
-            'pageTitle' => 'Промты WP — Budget',
+            'pageTitle' => 'Промты — Бюджет',
             'languages' => $languages,
             'promptsByCode' => $promptsByCode,
             'entertainmentVisitPricePrompt' => BudgetPromt::where('name', self::ENTERTAINMENT_VISIT_PRICE_PROMPT_NAME)->value('content') ?? '',

@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\ZurichPlacesTestController;
 use App\Http\Controllers\Admin\ZurichRestaurantsController;
 use App\Http\Controllers\Admin\BernTouristController;
 use App\Http\Controllers\Admin\DataForSeoAggregationController;
+use App\Http\Controllers\Admin\WeatherController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -188,6 +189,13 @@ Route::prefix('admin')
             Route::post('classify/{slug}', [FoodSampleController::class, 'classifyRegion'])->name('classify');
             Route::get('{slug}', [FoodSampleController::class, 'show'])->name('show');
         });
+
+        Route::get('weather', [WeatherController::class, 'index'])->name('weather.index');
+        Route::get('weather/status', [WeatherController::class, 'status'])->name('weather.status');
+        Route::post('weather/queue', [WeatherController::class, 'queue'])->name('weather.queue');
+        Route::post('weather/queue/{slug}', [WeatherController::class, 'queueRegion'])->name('weather.queue-region');
+        Route::post('weather/clear-all', [WeatherController::class, 'clearAll'])->name('weather.clear-all');
+        Route::post('weather/{slug}', [WeatherController::class, 'refresh'])->name('weather.refresh');
 
         Route::prefix('prompts-wp')->name('prompts-wp.')->group(function () {
             Route::get('weather', [WeatherPromptController::class, 'edit'])->name('weather');

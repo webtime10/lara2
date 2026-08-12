@@ -36,7 +36,7 @@ class WeatherPromptController extends Controller
         );
 
         return view('admin.prompts-wp.weather', [
-            'pageTitle' => 'Промты WP — Weather',
+            'pageTitle' => 'Промты — Погода',
             'languages' => $languages,
             'promptsByCode' => $promptsByCode,
             'promptLangCodes' => $codes,

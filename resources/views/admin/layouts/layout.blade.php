@@ -192,10 +192,187 @@
                             <p>Главная</p>
                         </a>
                     </li>
+                    <li class="nav-item has-treeview {{ request()->routeIs('admin.categories.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-map-marked-alt"></i>
+                            <p>
+                                Ваш идеальный регион
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.categories.index') }}" class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Категории</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    @php
+                        $budgetMenuActive = request()->routeIs(
+                            'admin.budget-calculator.*',
+                            'admin.budget.*',
+                            'admin.hotel-average-prices.*',
+                            'admin.apartment-average-prices.*',
+                            'admin.car-rental-prices.*',
+                            'admin.entertainment-visit-prices.*',
+                            'admin.food-sources.*',
+                            'admin.food-visit-prices.*',
+                            'admin.food-imports.*',
+                            'admin.food-samples.*'
+                        );
+                        $promptsMenuActive = request()->routeIs('admin.prompts-wp.*');
+                    @endphp
+                    <li class="nav-item has-treeview {{ $budgetMenuActive ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-wallet"></i>
+                            <p>
+                                Бюджет
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item has-treeview {{ $budgetMenuActive ? 'menu-open' : '' }}">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>
+                                        Швейцария
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget-calculator.index') }}" class="nav-link {{ request()->routeIs('admin.budget-calculator.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Калькулятор</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.hotels.index') }}" class="nav-link {{ request()->routeIs('admin.budget.hotels.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Отели</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.hotel-average-prices.index') }}" class="nav-link {{ request()->routeIs('admin.hotel-average-prices.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Средние цены отелей</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.apartments.index') }}" class="nav-link {{ request()->routeIs('admin.budget.apartments.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Апартаменты</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.apartment-average-prices.index') }}" class="nav-link {{ request()->routeIs('admin.apartment-average-prices.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Средние цены апартаментов</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.entertainments.index') }}" class="nav-link {{ request()->routeIs('admin.budget.entertainments.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Развлечения</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.car-rental-prices.index') }}" class="nav-link {{ request()->routeIs('admin.car-rental-prices.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Цены авто</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.entertainment-visit-prices.index') }}" class="nav-link {{ request()->routeIs('admin.entertainment-visit-prices.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Цены развлечений</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-sources.index') }}" class="nav-link {{ request()->routeIs('admin.food-sources.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Цены питания</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-visit-prices.cafes') }}" class="nav-link {{ request()->routeIs('admin.food-visit-prices.cafes') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Цены кафе</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-visit-prices.restaurants') }}" class="nav-link {{ request()->routeIs('admin.food-visit-prices.restaurants') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Цены ресторанов</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.food-imports.index') }}" class="nav-link {{ request()->routeIs('admin.food-imports.*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Кафе и рестораны</p>
+                                </a>
+                            </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-treeview {{ request()->routeIs('admin.weather.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-cloud-sun"></i>
+                            <p>
+                                Погода
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.weather.index') }}" class="nav-link {{ request()->routeIs('admin.weather.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Швейцария</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nav-item has-treeview {{ $promptsMenuActive ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fas fa-file-alt"></i>
+                            <p>
+                                Промты
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item has-treeview {{ $promptsMenuActive ? 'menu-open' : '' }}">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>
+                                        Швейцария
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.prompts-wp.weather') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.weather*') ? 'active' : '' }}">
+                                            <i class="far fa-dot-circle nav-icon"></i>
+                                            <p>Погода</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.prompts-wp.budget') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.budget*') ? 'active' : '' }}">
+                                            <i class="far fa-dot-circle nav-icon"></i>
+                                            <p>Бюджет</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
-                        <a href="{{ route('admin.categories.index') }}" class="nav-link">
-                            <i class="nav-icon fas fa-tags"></i>
-                            <p>Категории</p>
+                        <a href="{{ route('admin.manufacturers.index') }}" class="nav-link">
+                            <i class="nav-icon fas fa-industry"></i>
+                            <p>Производители</p>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -205,122 +382,10 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('admin.manufacturers.index') }}" class="nav-link">
-                            <i class="nav-icon fas fa-industry"></i>
-                            <p>Производители</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a href="{{ route('admin.languages.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-language"></i>
                             <p>Языки</p>
                         </a>
-                    </li>
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-wallet"></i>
-                            <p>
-                                Бюджет
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{ route('admin.budget-calculator.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Калькулятор</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.budget.hotels.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Отели</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.hotel-average-prices.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Средние цены отелей</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.budget.apartments.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Апартаменты</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.apartment-average-prices.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Средние цены апартаментов</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.budget.entertainments.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Развлечения</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.car-rental-prices.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Цены авто</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.entertainment-visit-prices.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Цены развлечений</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.food-sources.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Цены питания</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.food-visit-prices.cafes') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Цены кафе</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.food-visit-prices.restaurants') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Цены ресторанов</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.food-imports.index') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Кафе и рестораны</p>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="nav-item has-treeview">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-file-alt"></i>
-                            <p>
-                                Промты WP
-                                <i class="right fas fa-angle-left"></i>
-                            </p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{ route('admin.prompts-wp.weather') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Weather</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.prompts-wp.budget') }}" class="nav-link">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Budget</p>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     <li class="nav-item has-treeview">
                         <a href="#" class="nav-link">
@@ -435,7 +500,7 @@
             let link = this.href;
             if (link == location) {
                 $(this).addClass('active');
-                $(this).closest('.has-treeview').addClass('menu-open');
+                $(this).parents('.has-treeview').addClass('menu-open');
             }
         });
         

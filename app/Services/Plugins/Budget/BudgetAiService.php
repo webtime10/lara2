@@ -39,7 +39,7 @@ class BudgetAiService
         if ($instruction === '') {
             return [
                 'ok' => false,
-                'message' => 'Главный промт для языка '.$language.' не задан (админка → Промты WP → Budget).',
+                'message' => 'Главный промт для языка '.$language.' не задан (админка → Промты → Швейцария → Бюджет).',
             ];
         }
 

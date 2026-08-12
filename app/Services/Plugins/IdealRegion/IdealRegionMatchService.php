@@ -113,7 +113,7 @@ class IdealRegionMatchService
             ];
         })->filter()->values();
 
-        // Step 1 доминирует: сначала пейзаж, затем уточнение по шагам 2–7.
+        // Step 1 доминирует: сначала сезон (шаг 1), затем уточнение по шагам 2–8.
         $sorted = $regions
             ->filter(fn ($region) => ($region['step1_score'] ?? 0) > 0 || ($region['match_score'] ?? 0) > 0)
             ->sort(function (array $a, array $b) {
@@ -228,7 +228,7 @@ class IdealRegionMatchService
 
     /**
      * @param  array<string, mixed>  $catalog
-     * @return array<string, int>
+     * @return array<string, list<int>>
      */
     private function parseUserChoices(array $catalog): array
     {
@@ -248,11 +248,25 @@ class IdealRegionMatchService
                 continue;
             }
 
-            $slot = isset($item['slot']) && is_numeric($item['slot'])
-                ? (int) $item['slot']
-                : $this->parseSlot((string) ($item['value'] ?? ''));
-            if ($slot !== null && $slot > 0) {
-                $choices['step_'.$stepNum] = $slot;
+            $slots = [];
+            if (isset($item['slots']) && is_array($item['slots'])) {
+                foreach ($item['slots'] as $slotRaw) {
+                    if (is_numeric($slotRaw) && (int) $slotRaw > 0) {
+                        $slots[] = (int) $slotRaw;
+                    }
+                }
+            } elseif (isset($item['slot']) && is_numeric($item['slot']) && (int) $item['slot'] > 0) {
+                $slots[] = (int) $item['slot'];
+            } else {
+                $parsed = $this->parseSlot((string) ($item['value'] ?? ''));
+                if ($parsed !== null && $parsed > 0) {
+                    $slots[] = $parsed;
+                }
+            }
+
+            $slots = array_values(array_unique($slots));
+            if ($slots !== []) {
+                $choices['step_'.$stepNum] = $slots;
             }
         }
 
@@ -260,22 +274,29 @@ class IdealRegionMatchService
     }
 
     /**
-     * Оценки по выбранным критериям: step_1 → 10, step_2 → 9 …
+     * Оценки по выбранным критериям: при нескольких слотах — среднее.
      *
      * @param  array<string, array<string, int|null>>  $steps
-     * @param  array<string, int>  $userChoices
+     * @param  array<string, list<int>>  $userChoices
      * @return array<string, int>
      */
     private function criteriaScoresForChoices(array $steps, array $userChoices): array
     {
         $scores = [];
 
-        foreach ($userChoices as $stepKey => $slot) {
+        foreach ($userChoices as $stepKey => $slots) {
             $stepScores = $steps[$stepKey] ?? [];
-            $score = $stepScores[(string) $slot] ?? null;
+            $picked = [];
 
-            if ($score !== null) {
-                $scores[$stepKey] = $score;
+            foreach ((array) $slots as $slot) {
+                $score = $stepScores[(string) $slot] ?? null;
+                if ($score !== null) {
+                    $picked[] = (int) $score;
+                }
+            }
+
+            if ($picked !== []) {
+                $scores[$stepKey] = (int) round(array_sum($picked) / count($picked));
             }
         }
 

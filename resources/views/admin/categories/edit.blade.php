@@ -5,11 +5,12 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1>Редактирование категории</h1>
+                    <h1>Редактирование региона</h1>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Ваш идеальный регион</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Категории</a></li>
                         <li class="breadcrumb-item active">Редактирование</li>
                     </ol>
@@ -75,7 +76,7 @@
                                                  role="tabpanel"
                                                  aria-labelledby="tab-lang-{{ $c }}">
                                                 <div class="form-group">
-                                                    <label for="name_{{ $c }}">Название категории @if($language->is_default)<span class="text-danger">*</span>@endif</label>
+                                                    <label for="name_{{ $c }}">Название региона @if($language->is_default)<span class="text-danger">*</span>@endif</label>
                                                     <input type="text" name="name_{{ $c }}" id="name_{{ $c }}"
                                                            class="form-control form-control-lg @error('name_'.$c) is-invalid @enderror"
                                                            value="{{ old('name_'.$c, $desc->name ?? '') }}"
@@ -110,7 +111,7 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="parent_id">Внутри какой категории показывать</label>
+                                    <label for="parent_id">Внутри какого региона показывать</label>
                                     <select name="parent_id" id="parent_id" class="form-control @error('parent_id') is-invalid @enderror">
                                         <option value="">— В корне каталога —</option>
                                         @foreach($parentOptions as $opt)
@@ -119,7 +120,7 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    <small class="form-text text-muted">Себя и вложенные категории выбрать нельзя.</small>
+                                    <small class="form-text text-muted">Себя и вложенные регионы выбрать нельзя.</small>
                                     @error('parent_id')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
