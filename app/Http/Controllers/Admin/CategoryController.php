@@ -52,6 +52,7 @@ class CategoryController extends Controller
         $rules = [
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
+            'image' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -69,7 +70,7 @@ class CategoryController extends Controller
             $category = Category::create([
                 'parent_id' => $request->input('parent_id'),
                 'manufacturer_id' => $request->input('manufacturer_id'),
-                'image' => null,
+                'image' => $request->input('image') ?: null,
                 'top' => false,
                 'column' => 0,
                 'sort_order' => (int) $request->input('sort_order', 0),
@@ -137,6 +138,7 @@ class CategoryController extends Controller
                 Rule::notIn(array_merge([(int) $category->id], $category->descendantIdList())),
             ],
             'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
+            'image' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -154,6 +156,7 @@ class CategoryController extends Controller
             $category->update([
                 'parent_id' => $request->input('parent_id'),
                 'manufacturer_id' => $request->input('manufacturer_id'),
+                'image' => $request->input('image') ?: null,
                 'top' => false,
                 'column' => 0,
                 'sort_order' => (int) $request->input('sort_order', 0),

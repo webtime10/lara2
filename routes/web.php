@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\ZurichHotelsController;
 use App\Http\Controllers\Admin\ZurichPlacesTestController;
 use App\Http\Controllers\Admin\ZurichRestaurantsController;
 use App\Http\Controllers\Admin\WeatherController;
+use App\Http\Controllers\Admin\FileManagerController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -110,6 +111,11 @@ Route::prefix('admin')
             Route::post('restaurants/fetch', [ZurichRestaurantsController::class, 'fetch'])->name('restaurants.fetch');
             Route::get('places', [ZurichPlacesTestController::class, 'index'])->name('places');
         });
+
+        // Файловый менеджер
+        Route::get('filemanager/list', [FileManagerController::class, 'list'])->name('filemanager.list');
+        Route::post('filemanager/upload', [FileManagerController::class, 'upload'])->name('filemanager.upload');
+        Route::post('filemanager/delete', [FileManagerController::class, 'delete'])->name('filemanager.delete');
 
         // Ресурсы
         Route::post('categories/bulk-delete', [CategoryController::class, 'bulkDelete'])->name('categories.bulk-delete');

@@ -99,10 +99,19 @@ class IdealRegionMatchService
             $restScore = $this->calculateRestScore($criteriaScores);
             $matchScore = $this->calculateWeightedScore($step1Score, $restScore);
 
+            $imageRaw = $category->image ?? '';
+            $imageUrl = '';
+            if ($imageRaw !== '') {
+                $imageUrl = str_starts_with($imageRaw, 'http')
+                    ? $imageRaw
+                    : rtrim(config('app.url'), '/') . '/' . ltrim($imageRaw, '/');
+            }
+
             return [
                 'category_id' => $category->id,
                 'name' => $description->name,
                 'slug' => $description->slug,
+                'image' => $imageUrl,
                 'description' => $this->plainDescription($description->description ?? null),
                 'description_html' => $this->safeHtmlDescription($description->description ?? null),
                 'step1_score' => $step1Score,
@@ -379,7 +388,12 @@ class IdealRegionMatchService
             return '';
         }
 
-        return strip_tags($html, '<p><br><strong><b><em><i><ul><ol><li>');
+        $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return strip_tags(
+            $html,
+            '<p><br><strong><b><em><i><u><ul><ol><li><h2><h3><h4><span><div>'
+        );
     }
 
     private function toScore(mixed $raw): ?int

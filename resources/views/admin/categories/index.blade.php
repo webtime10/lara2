@@ -52,6 +52,7 @@
                                             <th>Порядок</th>
                                             <th>Краткое описание</th>
                                             <th>Родитель</th>
+                                            <th style="width: 70px">Фото</th>
                                             <th style="width: 150px">Действия</th>
                                         </tr>
                                     </thead>
@@ -81,6 +82,14 @@
                                                 <td>{{ $d->short_description ?? '—' }}</td>
                                                 <td>{{ $pd->name ?? '—' }}</td>
                                                 <td>
+                                                    @if($item->image)
+                                                        <img src="{{ asset($item->image) }}" alt=""
+                                                             style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #dee2e6;">
+                                                    @else
+                                                        <span class="text-muted" style="font-size:1.4rem;"><i class="fas fa-image"></i></span>
+                                                    @endif
+                                                </td>
+                                                <td>
                                                     <a href="{{ route('admin.categories.edit', $item->id) }}" class="btn btn-info btn-sm">
                                                         <i class="fas fa-pencil-alt"></i>
                                                     </a>
@@ -96,7 +105,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="8" class="text-center">Нет данных</td>
+                                                <td colspan="9" class="text-center">Нет данных</td>
                                             </tr>
                                         @endforelse
                                     </tbody>

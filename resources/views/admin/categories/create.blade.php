@@ -43,6 +43,8 @@
                             <form id="categoryForm" action="{{ route('admin.categories.store') }}" method="POST">
                                 @csrf
 
+                                @include('admin.categories.partials.image-field', ['imageValue' => old('image', '')])
+
                                 @if($languages->isEmpty())
                                     <p class="text-muted small mb-3">
                                         Языков пока нет — добавьте их в разделе <a href="{{ route('admin.languages.index') }}">«Языки»</a>.
@@ -146,6 +148,86 @@
 <script>
 (function ($) {
     $(function () {
+        // Image picker — OpenCart-style modal
+        var fmListUrl = '{{ route('admin.filemanager.list') }}';
+        var fmUploadUrl = '{{ route('admin.filemanager.upload') }}';
+        var fmDeleteUrl = '{{ route('admin.filemanager.delete') }}';
+        var fmCsrf = '{{ csrf_token() }}';
+
+        function fmLoad(search) {
+            var url = fmListUrl;
+            if (search) url += '?search=' + encodeURIComponent(search);
+            $('#fm-list-wrap').load(url);
+        }
+
+        $('#modal-filemanager').on('show.bs.modal', function () { fmLoad(); });
+        $('#btn-fm-refresh').on('click', function () { fmLoad($('#fm-search-input').val()); });
+        $('#btn-fm-search').on('click', function () { fmLoad($('#fm-search-input').val()); });
+        $('#fm-search-input').on('keydown', function (e) { if (e.which === 13) { e.preventDefault(); fmLoad($(this).val()); } });
+
+        // Select image
+        $(document).on('click', '.fm-thumb-card', function (e) {
+            if ($(e.target).closest('.fm-delete-btn').length) return;
+            var url = $(this).data('url');
+            $('#input-category-image').val(url);
+            $('#thumb-category-image').attr('src', url).show();
+            $('#thumb-category-placeholder').hide();
+            $('#modal-filemanager').modal('hide');
+        });
+
+        // Delete image
+        $(document).on('click', '.fm-delete-btn', function (e) {
+            e.stopPropagation();
+            var name = $(this).data('name');
+            var $card = $(this).closest('.col');
+            if (!confirm('Удалить «' + name + '»?')) return;
+            $.post(fmDeleteUrl, { _token: fmCsrf, name: name }, function () {
+                $card.remove();
+                if (!$('#fm-image-grid .col').length) {
+                    fmLoad();
+                }
+            });
+        });
+
+        // Upload
+        $('#btn-fm-upload').on('click', function () {
+            $('<input type="file" accept="image/*" multiple style="display:none">').appendTo('body')
+                .trigger('click')
+                .on('change', function () {
+                    var files = this.files;
+                    var $btn = $('#btn-fm-upload').prop('disabled', true);
+                    var pending = files.length;
+                    for (var i = 0; i < files.length; i++) {
+                        var fd = new FormData();
+                        fd.append('_token', fmCsrf);
+                        fd.append('file', files[i]);
+                        $.ajax({
+                            url: fmUploadUrl, type: 'POST',
+                            data: fd, processData: false, contentType: false,
+                            error: function (xhr) {
+                                var msg = xhr.responseJSON && xhr.responseJSON.errors
+                                    ? Object.values(xhr.responseJSON.errors).flat().join(', ')
+                                    : 'Ошибка загрузки';
+                                alert(msg);
+                            },
+                            complete: function () {
+                                if (--pending === 0) {
+                                    $btn.prop('disabled', false);
+                                    fmLoad($('#fm-search-input').val());
+                                }
+                            }
+                        });
+                    }
+                    $(this).remove();
+                });
+        });
+
+        $('#btn-clear-image').on('click', function () {
+            $('#input-category-image').val('');
+            $('#thumb-category-image').attr('src', '').hide();
+            $('#thumb-category-placeholder').show();
+        });
+
         $('.js-category-description').summernote({
             height: 220,
             toolbar: [
