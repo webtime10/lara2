@@ -428,6 +428,13 @@
                             </li>
                         </ul>
                     </li>
+                    @if(auth()->user()?->isAdmin())
+                    <li class="nav-item">
+                        <a href="{{ route('admin.postgres-manager.index') }}" class="nav-link {{ request()->routeIs('admin.postgres-manager.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-database"></i>
+                            <p>PostgreSQL Manager</p>
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a href="{{ route('admin.roles.index') }}" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
@@ -440,6 +447,7 @@
                             <p>Пользователи</p>
                         </a>
                     </li>
+                    @endif
                 </ul>
             </nav>
             <!-- /.sidebar-menu -->
@@ -466,6 +474,12 @@
                     @if (session()->has('success'))
                         <div class="alert alert-success">
                             {{ session('success') }}
+                        </div>
+                    @endif
+
+                    @if (session()->has('error'))
+                        <div class="alert alert-danger">
+                            {{ session('error') }}
                         </div>
                     @endif
                 </div>

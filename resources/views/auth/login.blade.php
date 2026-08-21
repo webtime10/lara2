@@ -38,7 +38,7 @@
                                     <input type="text" 
                                            name="login" 
                                            class="form-control @error('login') is-invalid @enderror" 
-                                           placeholder="Email или Имя" 
+                                           placeholder="Имя" 
                                            value="{{ old('login') }}" 
                                            required 
                                            autofocus>

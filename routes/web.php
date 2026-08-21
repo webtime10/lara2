@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\ZurichPlacesTestController;
 use App\Http\Controllers\Admin\ZurichRestaurantsController;
 use App\Http\Controllers\Admin\WeatherController;
 use App\Http\Controllers\Admin\FileManagerController;
+use App\Http\Controllers\Admin\PostgresManagerController;
 use App\Http\Controllers\Auth\AdminLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -201,6 +202,9 @@ Route::prefix('admin')
         Route::middleware(['admin'])->group(function () {
             Route::resource('roles', RoleController::class)->except(['show']);
             Route::resource('users', UserController::class)->except(['show']);
+
+            Route::get('postgres-manager', [PostgresManagerController::class, 'index'])->name('postgres-manager.index');
+            Route::post('postgres-manager/query', [PostgresManagerController::class, 'query'])->name('postgres-manager.query');
         });
         
     });

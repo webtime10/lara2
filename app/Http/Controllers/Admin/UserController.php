@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -45,8 +44,6 @@ class UserController extends Controller
             'role_id' => 'nullable|exists:roles,id',
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
-        
         User::create($validated);
 
         return redirect()->route('admin.users.index')
@@ -78,8 +75,6 @@ class UserController extends Controller
         // Если пароль не указан, не обновляем его
         if (empty($validated['password'])) {
             unset($validated['password']);
-        } else {
-            $validated['password'] = Hash::make($validated['password']);
         }
 
         $user->update($validated);

@@ -23,9 +23,10 @@ class AdminAccess
 
         // Проверяем роль администратора
         $user = Auth::user();
-        if (!$user->hasRole('admin')) {
-            Auth::logout();
-            return redirect('/login')->withErrors(['login' => 'Доступ только для администраторов.']);
+        if (! $user->isAdmin()) {
+            return redirect()
+                ->route('admin.index')
+                ->with('error', 'Доступ к пользователям и ролям только у admin.');
         }
 
         return $next($request);

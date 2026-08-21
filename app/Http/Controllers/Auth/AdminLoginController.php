@@ -19,19 +19,16 @@ class AdminLoginController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'login' => ['required', 'string'], // Email или имя
+            'login' => ['required', 'string'], // Только имя
             'password' => ['required'],
         ]);
 
         try {
             $login = $request->input('login');
             $password = $request->input('password');
-            
-            // Определяем, что введено: email или имя
-            $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
-            
-            // Пытаемся найти пользователя по email или name
-            $user = \App\Models\User::where($field, $login)->first();
+
+            // Вход только по имени (email запрещён)
+            $user = \App\Models\User::where('name', $login)->first();
             
             // Проверяем пароль
             if ($user && Hash::check($password, $user->password)) {
