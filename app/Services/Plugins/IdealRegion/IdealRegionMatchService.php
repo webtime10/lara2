@@ -99,19 +99,14 @@ class IdealRegionMatchService
             $restScore = $this->calculateRestScore($criteriaScores);
             $matchScore = $this->calculateWeightedScore($step1Score, $restScore);
 
-            $imageRaw = $category->image ?? '';
-            $imageUrl = '';
-            if ($imageRaw !== '') {
-                $imageUrl = str_starts_with($imageRaw, 'http')
-                    ? $imageRaw
-                    : rtrim(config('app.url'), '/') . '/' . ltrim($imageRaw, '/');
-            }
+            // Только относительный путь — полный URL собирает фронт (JS) из base Laravel.
+            $imagePath = $this->relativeImagePath($category->image ?? '');
 
             return [
                 'category_id' => $category->id,
                 'name' => $description->name,
                 'slug' => $description->slug,
-                'image' => $imageUrl,
+                'image' => $imagePath,
                 'description' => $this->plainDescription($description->description ?? null),
                 'description_html' => $this->safeHtmlDescription($description->description ?? null),
                 'step1_score' => $step1Score,
@@ -379,6 +374,30 @@ class IdealRegionMatchService
         $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
 
         return trim($text);
+    }
+
+    /**
+     * Относительный путь картинки категории (/uploads/catalog/...).
+     * Абсолютный URL из БД обрезаем до pathname — хост подставит фронт.
+     */
+    private function relativeImagePath(mixed $raw): string
+    {
+        $value = trim((string) $raw);
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+            $path = parse_url($value, PHP_URL_PATH);
+            $value = is_string($path) ? $path : '';
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        return '/' . ltrim($value, '/');
     }
 
     private function safeHtmlDescription(mixed $raw): string
