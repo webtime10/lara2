@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Plugins\RagController;
 use App\Http\Controllers\Api\Plugins\BudgetController;
 use App\Http\Controllers\Api\Plugins\IdealRegionController;
 use App\Http\Controllers\Api\Plugins\WeatherController;
@@ -25,4 +26,26 @@ Route::prefix('plugins')->group(function () {
     Route::post('ideal_region', [IdealRegionController::class, 'store'])
         ->middleware('plugin.api:ideal_region')
         ->name('api.plugins.ideal_region.store');
+
+    Route::prefix('rag')->group(function () {
+        Route::post('query', [RagController::class, 'query'])
+            ->middleware('plugin.api:rag')
+            ->name('api.plugins.rag.query');
+
+        Route::post('upsert', [RagController::class, 'upsert'])
+            ->middleware('plugin.api:rag')
+            ->name('api.plugins.rag.upsert');
+
+        Route::post('clear', [RagController::class, 'clear'])
+            ->middleware('plugin.api:rag')
+            ->name('api.plugins.rag.clear');
+
+        Route::post('fetch', [RagController::class, 'fetch'])
+            ->middleware('plugin.api:rag')
+            ->name('api.plugins.rag.fetch');
+
+        Route::get('stats', [RagController::class, 'stats'])
+            ->middleware('plugin.api:rag')
+            ->name('api.plugins.rag.stats');
+    });
 });
