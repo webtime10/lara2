@@ -1,66 +1,96 @@
-version: '3.8'
-
 services:
-  app:
-    image: php:8.4-apache
-    container_name: laravel12-app
+  lara2-web:
+    build: .
+    container_name: lara2_web
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8485:80"
+      - "8446:443"
     volumes:
       - .:/var/www/html
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html/public
-    # Мы добавили установку драйвера pdo_mysql перед запуском Apache
-    command: >
-      sh -c "apt-get update && apt-get install -y libpng-dev libonig-dev libxml2-dev 
-      && docker-php-ext-install pdo_mysql mysqli
-      && sed -ri -e 's!/var/www/html!$${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-      && sed -ri -e 's!/var/www/!$${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-      && a2enmod rewrite
-      && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-      && apache2-foreground"
-    networks:
-      - laravel-net
+    depends_on:
+      lara2-mysql:
+        condition: service_healthy
+      lara2-postgres:
+        condition: service_healthy
+      lara2-redis:
+        condition: service_started
 
-  mysql:
-    image: mysql:8.4
-    container_name: laravel12-mysql
+  lara2-mysql:
+    image: mysql:8.0
+    container_name: lara2_mysql
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: app
-      MYSQL_USER: app
-      MYSQL_PASSWORD: app
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3307:3306"
+      - "3386:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: lara2
+      MYSQL_USER: lara2
+      MYSQL_PASSWORD: lara2
     volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - laravel-net
+      - lara2_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  redis:
-    image: redis:7.2
-    container_name: laravel12-redis
+  lara2-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lara2_postgres
     restart: unless-stopped
     ports:
-      - "6379:6379"
-    networks:
-      - laravel-net
-
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: laravel12-phpmyadmin
-    ports:
-      - "8082:80"
+      - "5436:5432"
     environment:
-      PMA_HOST: mysql
-    networks:
-      - laravel-net
+      POSTGRES_DB: lara2_vectors
+      POSTGRES_USER: lara2
+      POSTGRES_PASSWORD: lara2
+    volumes:
+      - lara2_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-vector.sql:/docker-entrypoint-initdb.d/01-init-vector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lara2 -d lara2_vectors"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-networks:
-  laravel-net:
-    driver: bridge
+  lara2-redis:
+    image: redis:7.2-alpine
+    container_name: lara2_redis
+    restart: unless-stopped
+    # без проброса порта на хост — внутри docker-сети достаточно lara2-redis:6379
+
+  lara2-pma:
+    image: phpmyadmin/phpmyadmin
+    container_name: lara2_pma
+    restart: unless-stopped
+    ports:
+      - "8303:80"
+    environment:
+      PMA_HOST: lara2-mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 256M
+    depends_on:
+      - lara2-mysql
+
+  lara2-pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: lara2_pgadmin
+    restart: unless-stopped
+    ports:
+      - "8304:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - lara2_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - lara2-postgres
 
 volumes:
-  mysql_data:
+  lara2_mysql_data:
+  lara2_postgres_data:
+  lara2_pgadmin_data:
