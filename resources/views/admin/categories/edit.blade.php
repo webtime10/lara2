@@ -11,6 +11,7 @@
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Home</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Ваш идеальный регион</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Швейцария</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Категории</a></li>
                         <li class="breadcrumb-item active">Редактирование</li>
                     </ol>
@@ -44,8 +45,6 @@
                                 @csrf
                                 @method('PUT')
 
-                                @include('admin.categories.partials.image-field', ['imageValue' => old('image', $category->image ?? '')])
-
                                 @if($languages->isEmpty())
                                     <p class="text-muted small mb-3">
                                         Языков пока нет — добавьте их в разделе <a href="{{ route('admin.languages.index') }}">«Языки»</a>.
@@ -72,11 +71,18 @@
                                             @php
                                                 $c = $language->code;
                                                 $desc = $category->descriptions->firstWhere('language_id', $language->id);
+                                                $imgVal = old('image_'.$c, $desc->image ?? '');
                                             @endphp
                                             <div class="tab-pane fade @if($index === 0) show active @endif"
                                                  id="pane-lang-{{ $c }}"
                                                  role="tabpanel"
                                                  aria-labelledby="tab-lang-{{ $c }}">
+                                                @include('admin.categories.partials.image-field', [
+                                                    'imageValue' => $imgVal,
+                                                    'inputName' => 'image_'.$c,
+                                                    'fieldId' => $c,
+                                                    'label' => 'Изображение',
+                                                ])
                                                 <div class="form-group">
                                                     <label for="name_{{ $c }}">Название региона @if($language->is_default)<span class="text-danger">*</span>@endif</label>
                                                     <input type="text" name="name_{{ $c }}" id="name_{{ $c }}"
@@ -96,6 +102,8 @@
                                         @endforeach
                                     </div>
                                 @endif
+
+                                @include('admin.categories.partials.filemanager-modal')
 
                                 <div class="form-group">
                                     <label for="manufacturer_id">Производитель <span class="text-danger">*</span></label>
@@ -169,13 +177,22 @@
         $('#btn-fm-search').on('click', function () { fmLoad($('#fm-search-input').val()); });
         $('#fm-search-input').on('keydown', function (e) { if (e.which === 13) { e.preventDefault(); fmLoad($(this).val()); } });
 
-        // Select image
+        // Select image into the language field that opened the modal
+        var fmTargetLang = null;
+        $(document).on('click', '.js-open-filemanager', function () {
+            fmTargetLang = $(this).data('lang') || null;
+        });
+
         $(document).on('click', '.fm-thumb-card', function (e) {
             if ($(e.target).closest('.fm-delete-btn').length) return;
             var url = $(this).data('url');
-            $('#input-category-image').val(url);
-            $('#thumb-category-image').attr('src', url).show();
-            $('#thumb-category-placeholder').hide();
+            var lang = fmTargetLang;
+            if (!lang) {
+                return;
+            }
+            $('#input-category-image-' + lang).val(url);
+            $('#thumb-category-image-' + lang).attr('src', url).show();
+            $('#thumb-category-placeholder-' + lang).hide();
             $('#modal-filemanager').modal('hide');
         });
 
@@ -226,10 +243,11 @@
                 });
         });
 
-        $('#btn-clear-image').on('click', function () {
-            $('#input-category-image').val('');
-            $('#thumb-category-image').attr('src', '').hide();
-            $('#thumb-category-placeholder').show();
+        $(document).on('click', '.js-clear-lang-image', function () {
+            var lang = $(this).data('lang');
+            $('#input-category-image-' + lang).val('');
+            $('#thumb-category-image-' + lang).attr('src', '').hide();
+            $('#thumb-category-placeholder-' + lang).show();
         });
 
         $('.js-category-description').summernote({

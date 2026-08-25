@@ -1,6 +1,7 @@
 <?php
 use App\Http\Controllers\Admin\MainController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\JCategoryController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ManufacturerController;
 use App\Http\Controllers\Admin\ProductController;
@@ -121,6 +122,8 @@ Route::prefix('admin')
         // Ресурсы
         Route::post('categories/bulk-delete', [CategoryController::class, 'bulkDelete'])->name('categories.bulk-delete');
         Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::post('j-categories/bulk-delete', [JCategoryController::class, 'bulkDelete'])->name('j-categories.bulk-delete');
+        Route::resource('j-categories', JCategoryController::class)->except(['show']);
         Route::resource('languages', LanguageController::class)->except(['show']);
         Route::resource('products', ProductController::class)->except(['show']);
         Route::resource('manufacturers', ManufacturerController::class)->except(['show']);

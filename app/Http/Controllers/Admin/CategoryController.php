@@ -52,7 +52,6 @@ class CategoryController extends Controller
         $rules = [
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
-            'image' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -61,6 +60,7 @@ class CategoryController extends Controller
             $suffix = $language->code;
             $rules['name_'.$suffix] = $language->is_default ? 'required|string|max:255' : 'nullable|string|max:255';
             $rules['description_'.$suffix] = 'nullable|string';
+            $rules['image_'.$suffix] = 'nullable|string|max:255';
             $rules = array_merge($rules, $this->idealRegionFieldRules($suffix));
         }
 
@@ -70,12 +70,15 @@ class CategoryController extends Controller
             $category = Category::create([
                 'parent_id' => $request->input('parent_id'),
                 'manufacturer_id' => $request->input('manufacturer_id'),
-                'image' => $request->input('image') ?: null,
+                'image' => null,
                 'top' => false,
                 'column' => 0,
                 'sort_order' => (int) $request->input('sort_order', 0),
                 'status' => $request->boolean('status'),
             ]);
+
+            $fallbackImage = null;
+            $defaultImage = null;
 
             foreach ($languages as $language) {
                 $suffix = $language->code;
@@ -84,17 +87,28 @@ class CategoryController extends Controller
                     continue;
                 }
 
+                $langImage = $request->input('image_'.$suffix) ?: null;
+                if ($langImage && $fallbackImage === null) {
+                    $fallbackImage = $langImage;
+                }
+                if ($language->is_default && $langImage) {
+                    $defaultImage = $langImage;
+                }
+
                 CategoryDescription::create(array_merge([
                     'category_id' => $category->id,
                     'language_id' => $language->id,
                     'name' => $name,
                     'slug' => CategoryDescription::uniqueSlugForLanguage($name, (int) $language->id),
+                    'image' => $langImage,
                     'description' => $request->input('description_'.$suffix),
                     'meta_title' => null,
                     'meta_description' => null,
                     'meta_keyword' => null,
                 ], $this->idealRegionFieldValues($request, $suffix)));
             }
+
+            $category->update(['image' => $defaultImage ?: $fallbackImage]);
 
             Category::rebuildPaths();
         });
@@ -138,7 +152,6 @@ class CategoryController extends Controller
                 Rule::notIn(array_merge([(int) $category->id], $category->descendantIdList())),
             ],
             'manufacturer_id' => ['required', 'integer', 'exists:manufacturers,id'],
-            'image' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'nullable|boolean',
         ];
@@ -147,6 +160,7 @@ class CategoryController extends Controller
             $suffix = $language->code;
             $rules['name_'.$suffix] = $language->is_default ? 'required|string|max:255' : 'nullable|string|max:255';
             $rules['description_'.$suffix] = 'nullable|string';
+            $rules['image_'.$suffix] = 'nullable|string|max:255';
             $rules = array_merge($rules, $this->idealRegionFieldRules($suffix));
         }
 
@@ -156,12 +170,14 @@ class CategoryController extends Controller
             $category->update([
                 'parent_id' => $request->input('parent_id'),
                 'manufacturer_id' => $request->input('manufacturer_id'),
-                'image' => $request->input('image') ?: null,
                 'top' => false,
                 'column' => 0,
                 'sort_order' => (int) $request->input('sort_order', 0),
                 'status' => $request->boolean('status'),
             ]);
+
+            $fallbackImage = null;
+            $defaultImage = null;
 
             foreach ($languages as $language) {
                 $suffix = $language->code;
@@ -173,6 +189,14 @@ class CategoryController extends Controller
                         ->delete();
 
                     continue;
+                }
+
+                $langImage = $request->input('image_'.$suffix) ?: null;
+                if ($langImage && $fallbackImage === null) {
+                    $fallbackImage = $langImage;
+                }
+                if ($language->is_default && $langImage) {
+                    $defaultImage = $langImage;
                 }
 
                 CategoryDescription::updateOrCreate(
@@ -187,6 +211,7 @@ class CategoryController extends Controller
                             (int) $language->id,
                             (int) $category->id
                         ),
+                        'image' => $langImage,
                         'description' => $request->input('description_'.$suffix),
                         'meta_title' => null,
                         'meta_description' => null,
@@ -194,6 +219,8 @@ class CategoryController extends Controller
                     ], $this->idealRegionFieldValues($request, $suffix))
                 );
             }
+
+            $category->update(['image' => $defaultImage ?: $fallbackImage]);
 
             Category::rebuildPaths();
         });

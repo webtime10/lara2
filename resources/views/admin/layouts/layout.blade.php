@@ -192,7 +192,7 @@
                             <p>Главная</p>
                         </a>
                     </li>
-                    <li class="nav-item has-treeview {{ request()->routeIs('admin.categories.*') ? 'menu-open' : '' }}">
+                    <li class="nav-item has-treeview {{ request()->routeIs('admin.categories.*', 'admin.j-categories.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-map-marked-alt"></i>
                             <p>
@@ -201,11 +201,39 @@
                             </p>
                         </a>
                         <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{ route('admin.categories.index') }}" class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                            <li class="nav-item has-treeview {{ request()->routeIs('admin.categories.*') ? 'menu-open' : '' }}">
+                                <a href="#" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Категории</p>
+                                    <p>
+                                        Швейцария
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
                                 </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.categories.index') }}" class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                                            <i class="far fa-dot-circle nav-icon"></i>
+                                            <p>Категории</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item has-treeview {{ request()->routeIs('admin.j-categories.*') ? 'menu-open' : '' }}">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>
+                                        Япония
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.j-categories.index') }}" class="nav-link {{ request()->routeIs('admin.j-categories.*') ? 'active' : '' }}">
+                                            <i class="far fa-dot-circle nav-icon"></i>
+                                            <p>Категории</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         </ul>
                     </li>

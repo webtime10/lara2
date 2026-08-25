@@ -13,6 +13,7 @@ class CategoryDescription extends Model
         'language_id',
         'name',
         'slug',
+        'image',
         'description',
         'meta_title',
         'meta_description',

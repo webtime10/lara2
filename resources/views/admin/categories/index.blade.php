@@ -11,6 +11,7 @@
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Ваш идеальный регион</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.categories.index') }}">Швейцария</a></li>
                         <li class="breadcrumb-item active">Категории</li>
                     </ol>
                 </div>

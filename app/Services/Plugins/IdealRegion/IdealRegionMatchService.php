@@ -3,18 +3,30 @@
 namespace App\Services\Plugins\IdealRegion;
 
 use App\Models\Category;
-use App\Models\CategoryDescription;
+use App\Models\JCategory;
 use App\Models\Language;
 use App\Models\Manufacturer;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class IdealRegionMatchService
 {
+    private const JAPAN_MANUFACTURER_ID = 2;
+
+    private const SWISS_CONTENT_LANG = 'ar';
+
+    private const JAPAN_CONTENT_LANG = 'he';
+
     /**
      * @return array<string, list<string>>
      */
-    public function stepSlots(): array
+    public function stepSlots(?Manufacturer $manufacturer = null): array
     {
-        $slots = (array) config('ideal_region_category_fields.step_slots', []);
+        $configKey = $this->isJapanManufacturer($manufacturer)
+            ? 'japan_ideal_region_category_fields.step_slots'
+            : 'ideal_region_category_fields.step_slots';
+
+        $slots = (array) config($configKey, []);
 
         return array_filter($slots, fn ($fields) => is_array($fields) && $fields !== []);
     }
@@ -22,13 +34,14 @@ class IdealRegionMatchService
     /**
      * Оценки категории по шагам: step_1 → { "1": 10, "2": 3, … }.
      *
+     * @param  Model  $description  CategoryDescription|JCategoryDescription
      * @return array<string, array<string, int|null>>
      */
-    public function numberedStepsForDescription(CategoryDescription $description): array
+    public function numberedStepsForDescription(Model $description, ?Manufacturer $manufacturer = null): array
     {
         $out = [];
 
-        foreach ($this->stepSlots() as $stepKey => $fields) {
+        foreach ($this->stepSlots($manufacturer) as $stepKey => $fields) {
             $stepNum = (int) str_replace('step', '', (string) $stepKey);
             if ($stepNum <= 0) {
                 continue;
@@ -53,69 +66,33 @@ class IdealRegionMatchService
      */
     public function match(array $payload): array
     {
-        $languageCode = strtolower(trim((string) ($payload['language'] ?? '')));
-        $language = $this->resolveLanguage($languageCode);
+        $languageCode = $this->normalizeLanguageCode((string) ($payload['language'] ?? ''));
         $payloadManufacturerId = isset($payload['manufacturer_id']) ? (int) $payload['manufacturer_id'] : 0;
         $manufacturer = $this->resolveManufacturer($payloadManufacturerId > 0 ? $payloadManufacturerId : null);
         $manufacturerId = $manufacturer?->id;
 
-        if (! $manufacturerId) {
+        if (! $manufacturerId || ! $manufacturer) {
             return [
-                'language' => $language?->code ?? $languageCode,
+                'language' => $languageCode !== '' ? $languageCode : null,
                 'manufacturer_id' => null,
                 'manufacturer_name' => null,
                 'user_choices' => [],
                 'matched_regions' => [],
                 'matched_names' => [],
                 'best_match' => null,
-                'error' => 'Manufacturer not found (Швейцария).',
+                'error' => 'Manufacturer not found.',
             ];
         }
 
-        $categories = Category::query()
-            ->with(['descriptions' => fn ($q) => $language
-                ? $q->where('language_id', $language->id)
-                : $q])
-            ->where('manufacturer_id', $manufacturerId)
-            ->where('status', true)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $isJapan = $this->isJapanManufacturer($manufacturer);
+        $language = $this->resolveContentLanguage($languageCode, $isJapan);
+        $imageLanguage = $this->resolveImageLanguage($languageCode, $language);
 
         $userChoices = $this->parseUserChoices($payload['answers']['catalog'] ?? []);
 
-        $regions = $categories->map(function (Category $category) use ($language, $userChoices) {
-            $description = $language
-                ? $category->descriptions->firstWhere('language_id', $language->id)
-                : $category->descriptions->first();
-
-            if (! $description) {
-                return null;
-            }
-
-            $steps = $this->numberedStepsForDescription($description);
-            $criteriaScores = $this->criteriaScoresForChoices($steps, $userChoices);
-            $step1Score = (int) ($criteriaScores['step_1'] ?? 0);
-            $restScore = $this->calculateRestScore($criteriaScores);
-            $matchScore = $this->calculateWeightedScore($step1Score, $restScore);
-
-            // Только относительный путь — полный URL собирает фронт (JS) из base Laravel.
-            $imagePath = $this->relativeImagePath($category->image ?? '');
-
-            return [
-                'category_id' => $category->id,
-                'name' => $description->name,
-                'slug' => $description->slug,
-                'image' => $imagePath,
-                'description' => $this->plainDescription($description->description ?? null),
-                'description_html' => $this->safeHtmlDescription($description->description ?? null),
-                'step1_score' => $step1Score,
-                'rest_score' => $restScore,
-                'match_score' => $matchScore,
-                'criteria_scores' => $criteriaScores,
-                'steps' => $steps,
-            ];
-        })->filter()->values();
+        $regions = $isJapan
+            ? $this->matchJapanRegions($language, $imageLanguage, $userChoices, $manufacturer)
+            : $this->matchSwissRegions($language, $imageLanguage, $userChoices, $manufacturer);
 
         // Step 1 доминирует: сначала сезон (шаг 1), затем уточнение по шагам 2–8.
         $sorted = $regions
@@ -153,10 +130,146 @@ class IdealRegionMatchService
     }
 
     /**
+     * @param  array<string, list<int>>  $userChoices
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function matchSwissRegions(
+        ?Language $language,
+        ?Language $imageLanguage,
+        array $userChoices,
+        Manufacturer $manufacturer
+    ): Collection {
+        $langIds = array_values(array_unique(array_filter([
+            $language?->id,
+            $imageLanguage?->id,
+        ])));
+
+        $categories = Category::query()
+            ->with(['descriptions' => fn ($q) => $langIds !== []
+                ? $q->whereIn('language_id', $langIds)
+                : $q])
+            ->where('manufacturer_id', $manufacturer->id)
+            ->where('status', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return $categories->map(function (Category $category) use ($language, $imageLanguage, $userChoices, $manufacturer) {
+            $description = $language
+                ? $category->descriptions->firstWhere('language_id', $language->id)
+                : $category->descriptions->first();
+
+            if (! $description || trim((string) ($description->name ?? '')) === '') {
+                return null;
+            }
+
+            $imageDesc = $imageLanguage
+                ? $category->descriptions->firstWhere('language_id', $imageLanguage->id)
+                : null;
+
+            $image = (string) (($imageDesc->image ?? null)
+                ?: ($description->image ?? null)
+                ?: ($category->image ?? ''));
+
+            return $this->buildRegionResult(
+                (int) $category->id,
+                $description,
+                $image,
+                $userChoices,
+                $manufacturer
+            );
+        })->filter()->values();
+    }
+
+    /**
+     * @param  array<string, list<int>>  $userChoices
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function matchJapanRegions(
+        ?Language $language,
+        ?Language $imageLanguage,
+        array $userChoices,
+        Manufacturer $manufacturer
+    ): Collection {
+        $langIds = array_values(array_unique(array_filter([
+            $language?->id,
+            $imageLanguage?->id,
+        ])));
+
+        $categories = JCategory::query()
+            ->with(['descriptions' => fn ($q) => $langIds !== []
+                ? $q->whereIn('language_id', $langIds)
+                : $q])
+            ->where('manufacturer_id', $manufacturer->id)
+            ->where('status', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return $categories->map(function (JCategory $category) use ($language, $imageLanguage, $userChoices, $manufacturer) {
+            $description = $language
+                ? $category->descriptions->firstWhere('language_id', $language->id)
+                : $category->descriptions->first();
+
+            if (! $description || trim((string) ($description->name ?? '')) === '') {
+                return null;
+            }
+
+            $imageDesc = $imageLanguage
+                ? $category->descriptions->firstWhere('language_id', $imageLanguage->id)
+                : null;
+
+            $image = (string) (($imageDesc->image ?? null)
+                ?: ($description->image ?? null)
+                ?: ($category->image ?? ''));
+
+            return $this->buildRegionResult(
+                (int) $category->id,
+                $description,
+                $image,
+                $userChoices,
+                $manufacturer
+            );
+        })->filter()->values();
+    }
+
+    /**
+     * @param  array<string, list<int>>  $userChoices
+     * @return array<string, mixed>
+     */
+    private function buildRegionResult(
+        int $categoryId,
+        Model $description,
+        string $imageRaw,
+        array $userChoices,
+        Manufacturer $manufacturer
+    ): array {
+        $steps = $this->numberedStepsForDescription($description, $manufacturer);
+        $criteriaScores = $this->criteriaScoresForChoices($steps, $userChoices);
+        $step1Score = (int) ($criteriaScores['step_1'] ?? 0);
+        $restScore = $this->calculateRestScore($criteriaScores);
+        $matchScore = $this->calculateWeightedScore($step1Score, $restScore);
+
+        return [
+            'category_id' => $categoryId,
+            'name' => (string) ($description->name ?? ''),
+            'slug' => (string) ($description->slug ?? ''),
+            'image' => $this->relativeImagePath($imageRaw),
+            'description' => $this->plainDescription($description->description ?? null),
+            'description_html' => $this->safeHtmlDescription($description->description ?? null),
+            'step1_score' => $step1Score,
+            'rest_score' => $restScore,
+            'match_score' => $matchScore,
+            'criteria_scores' => $criteriaScores,
+            'steps' => $steps,
+        ];
+    }
+
+    /**
      * Берём топ-N: сначала среди регионов с максимальным step1,
      * если мало — расширяем на step1-1, и т.д.
      *
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $sorted
+     * @param  Collection<int, array<string, mixed>>  $sorted
      * @return list<array<string, mixed>>
      */
     private function pickTopByDominantStep1($sorted, int $limit = 2): array
@@ -228,6 +341,70 @@ class IdealRegionMatchService
             ->orWhere('name', 'like', '%Schweiz%')
             ->orderBy('id')
             ->first();
+    }
+
+    private function isJapanManufacturer(?Manufacturer $manufacturer): bool
+    {
+        if (! $manufacturer) {
+            return false;
+        }
+
+        if ((int) $manufacturer->id === self::JAPAN_MANUFACTURER_ID) {
+            return true;
+        }
+
+        $name = mb_strtolower(trim((string) $manufacturer->name));
+
+        return str_contains($name, 'япон')
+            || str_contains($name, 'japan');
+    }
+
+    private function normalizeLanguageCode(string $code): string
+    {
+        $code = strtolower(trim($code));
+        if ($code === 'iw') {
+            return self::JAPAN_CONTENT_LANG;
+        }
+
+        return $code;
+    }
+
+    /**
+     * Тексты и оценки: Швейцария — ar, Япония — he.
+     * Фото может браться с другого языка через resolveImageLanguage().
+     */
+    private function resolveContentLanguage(string $requestedCode, bool $isJapan): ?Language
+    {
+        $preferred = $isJapan ? self::JAPAN_CONTENT_LANG : self::SWISS_CONTENT_LANG;
+
+        $forced = Language::query()->where('code', $preferred)->first();
+        if ($forced) {
+            return $forced;
+        }
+
+        if ($requestedCode !== '') {
+            $lang = Language::query()->where('code', $requestedCode)->first();
+            if ($lang) {
+                return $lang;
+            }
+        }
+
+        return Language::getDefault();
+    }
+
+    /**
+     * Язык для фото: ar/he если запрошен, иначе тот же что контент.
+     */
+    private function resolveImageLanguage(string $requestedCode, ?Language $contentLanguage): ?Language
+    {
+        if (in_array($requestedCode, [self::JAPAN_CONTENT_LANG, self::SWISS_CONTENT_LANG], true)) {
+            $lang = Language::query()->where('code', $requestedCode)->first();
+            if ($lang) {
+                return $lang;
+            }
+        }
+
+        return $contentLanguage;
     }
 
     /**
@@ -397,7 +574,7 @@ class IdealRegionMatchService
             return '';
         }
 
-        return '/' . ltrim($value, '/');
+        return '/'.ltrim($value, '/');
     }
 
     private function safeHtmlDescription(mixed $raw): string
@@ -426,17 +603,5 @@ class IdealRegionMatchService
         }
 
         return (int) $raw;
-    }
-
-    private function resolveLanguage(string $code): ?Language
-    {
-        if ($code !== '') {
-            $lang = Language::query()->where('code', $code)->first();
-            if ($lang) {
-                return $lang;
-            }
-        }
-
-        return Language::getDefault();
     }
 }
