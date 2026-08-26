@@ -89,4 +89,57 @@ class BudgetHotelsController extends Controller
             'error' => $error,
         ]);
     }
+
+    public function hotel(string $slug, int $hotel, SwissHotelsService $hotels): View
+    {
+        $region = $hotels->findRegion($slug);
+        $hotelModel = $hotels->findHotel($slug, $hotel);
+        if ($region === null || $hotelModel === null) {
+            abort(404);
+        }
+
+        return view('admin.budget.hotels.hotel', [
+            'pageTitle' => $hotelModel->title,
+            'region' => $region,
+            'hotel' => $hotelModel,
+            'grid' => $hotels->occupancyGrid(),
+            'apiHint' => $hotels->apiHint($region),
+            'stored' => $hotels->storedOccupancyPrices($hotelModel),
+        ]);
+    }
+
+    public function occupancyPrices(Request $request, string $slug, int $hotel, SwissHotelsService $hotels): JsonResponse
+    {
+        $region = $hotels->findRegion($slug);
+        $hotelModel = $hotels->findHotel($slug, $hotel);
+        if ($region === null || $hotelModel === null) {
+            return response()->json(['ok' => false, 'message' => 'Отель не найден'], 404);
+        }
+
+        $key = trim((string) $request->input('key', ''));
+        if ($key === '') {
+            return response()->json(['ok' => false, 'message' => 'Не указана ячейка occupancy'], 422);
+        }
+
+        try {
+            $data = $hotels->fetchOccupancyCell($hotelModel, $region, $key);
+
+            return response()->json([
+                'ok' => true,
+                'saved' => true,
+                'hotel' => $hotelModel->title,
+                'hotel_identifier' => $hotelModel->hotel_identifier,
+                'stored_2a_price' => (float) $hotelModel->price_usd,
+                'check_in' => $data['check_in'],
+                'check_out' => $data['check_out'],
+                'fetched_at' => $data['fetched_at'],
+                'cell' => $data['cell'],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => SyncErrorMessage::format($e),
+            ], 502);
+        }
+    }
 }

@@ -5,21 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SwissHotel extends Model
+class SwissHotelOccupancyPrice extends Model
 {
     protected $fillable = [
         'region_id',
-        'title',
         'hotel_identifier',
-        'level',
-        'stars',
+        'occupancy_key',
+        'adults',
+        'children',
         'price_usd',
+        'error',
+        'check_in',
+        'check_out',
+        'api_cost',
+        'fetched_at',
     ];
 
     protected $casts = [
-        'level' => 'integer',
-        'stars' => 'integer',
+        'adults' => 'integer',
+        'children' => 'array',
         'price_usd' => 'decimal:2',
+        'api_cost' => 'decimal:6',
+        'check_in' => 'date',
+        'check_out' => 'date',
+        'fetched_at' => 'datetime',
     ];
 
     public function region(): BelongsTo

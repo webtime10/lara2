@@ -53,7 +53,10 @@
                     <h3 class="card-title">Кантоны Швейцарии</h3>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Выберите кантон — откроется таблица из базы. Для отдельной дозаливки используйте кнопку рядом с кантоном.</p>
+                    <p class="text-muted">Выберите кантон — откроется таблица из базы. Для отдельной дозаливки используйте кнопку рядом с кантоном.
+                        Сетку occupancy для карточек отелей настраивайте в
+                        <a href="{{ route('admin.budget.hotels.settings') }}">Отели — настройки</a>.
+                    </p>
                     <div class="row" id="swissRegionsGrid">
                         @foreach ($regions as $region)
                             <div class="col-md-3 col-sm-4 col-6 mb-2" data-region-slug="{{ $region->slug }}">

@@ -277,9 +277,15 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="{{ route('admin.budget.hotels.index') }}" class="nav-link {{ request()->routeIs('admin.budget.hotels.*') ? 'active' : '' }}">
+                                <a href="{{ route('admin.budget.hotels.index') }}" class="nav-link {{ request()->routeIs('admin.budget.hotels.index') || request()->routeIs('admin.budget.hotels.show') || request()->routeIs('admin.budget.hotels.hotel') || request()->routeIs('admin.budget.hotels.hotel.*') || request()->routeIs('admin.budget.hotels.sync*') ? 'active' : '' }}">
                                     <i class="far fa-dot-circle nav-icon"></i>
                                     <p>Отели</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.budget.hotels.settings') }}" class="nav-link {{ request()->routeIs('admin.budget.hotels.settings*') ? 'active' : '' }}">
+                                    <i class="far fa-dot-circle nav-icon"></i>
+                                    <p>Отели — настройки</p>
                                 </a>
                             </li>
                             <li class="nav-item">

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\BudgetCalculatorController;
 use App\Http\Controllers\Admin\BudgetApartmentsController;
 use App\Http\Controllers\Admin\BudgetEntertainmentsController;
+use App\Http\Controllers\Admin\BudgetHotelSettingsController;
 use App\Http\Controllers\Admin\BudgetHotelsController;
 use App\Http\Controllers\Admin\CarRentalPriceController;
 use App\Http\Controllers\Admin\EntertainmentVisitPriceController;
@@ -141,8 +142,12 @@ Route::prefix('admin')
 
         Route::prefix('budget/hotels')->name('budget.hotels.')->group(function () {
             Route::get('/', [BudgetHotelsController::class, 'index'])->name('index');
+            Route::get('settings', [BudgetHotelSettingsController::class, 'edit'])->name('settings');
+            Route::put('settings', [BudgetHotelSettingsController::class, 'update'])->name('settings.update');
             Route::post('sync-all/complete', [BudgetHotelsController::class, 'completeFullSync'])->name('sync-all.complete');
             Route::post('sync/{slug}', [BudgetHotelsController::class, 'syncRegion'])->name('sync');
+            Route::get('{slug}/hotel/{hotel}', [BudgetHotelsController::class, 'hotel'])->name('hotel');
+            Route::post('{slug}/hotel/{hotel}/occupancy', [BudgetHotelsController::class, 'occupancyPrices'])->name('hotel.occupancy');
             Route::get('{slug}', [BudgetHotelsController::class, 'show'])->name('show');
         });
 

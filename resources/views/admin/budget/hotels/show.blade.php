@@ -34,6 +34,7 @@
                     <p class="text-muted mb-3">
                         DataForSEO: <code>{{ $apiHint }}</code>, <code>keyword=hotels</code>, <code>currency=USD</code>.
                         Класс 1 / 2 / 3 — по цене внутри кантона.
+                        Название отеля открывает сетку occupancy (1A, 2A, 3A…).
                         @if ($region->hotels_synced_at)
                             <br>Сохранено в БД: <strong>{{ $syncedCount ?? $items->total() }}</strong> отелей,
                             обновлено {{ $region->hotels_synced_at->format('d.m.Y H:i') }}.
@@ -53,7 +54,14 @@
                             <tbody>
                                 @forelse ($items as $item)
                                     <tr>
-                                        <td>{{ $item->title }}</td>
+                                        <td>
+                                            <a href="{{ route('admin.budget.hotels.hotel', ['slug' => $region->slug, 'hotel' => $item->id]) }}">
+                                                {{ $item->title }}
+                                            </a>
+                                            @if (! $item->hotel_identifier)
+                                                <span class="badge badge-warning ml-1" title="Нужно обновить кантон из API">нет id</span>
+                                            @endif
+                                        </td>
                                         <td class="text-center">{{ $item->level }}</td>
                                         <td class="text-center">{{ $item->stars ? $item->stars.'*' : '—' }}</td>
                                         <td>${{ number_format($item->price_usd, 0) }}</td>
