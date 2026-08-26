@@ -17,12 +17,18 @@ class CategoryController extends Controller
     {
         $pageTitle = 'Категории';
         $defaultLanguage = Language::getDefault();
-        $categories = Category::with(['parent.descriptions', 'descriptions', 'manufacturer'])
+        $categories = Category::with(['parent.descriptions', 'descriptions.language', 'manufacturer'])
             ->orderBy('sort_order')
             ->orderBy('id', 'desc')
             ->get();
 
-        return view('admin.categories.index', compact('categories', 'pageTitle', 'defaultLanguage'));
+        $langIds = Language::query()
+            ->whereIn('code', ['he', 'ar'])
+            ->pluck('id', 'code')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return view('admin.categories.index', compact('categories', 'pageTitle', 'defaultLanguage', 'langIds'));
     }
 
     public function create()

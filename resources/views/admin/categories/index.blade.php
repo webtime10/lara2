@@ -53,7 +53,8 @@
                                             <th>Порядок</th>
                                             <th>Краткое описание</th>
                                             <th>Родитель</th>
-                                            <th style="width: 70px">Фото</th>
+                                            <th style="width: 80px">Фото he</th>
+                                            <th style="width: 80px">Фото ar</th>
                                             <th style="width: 150px">Действия</th>
                                         </tr>
                                     </thead>
@@ -64,6 +65,12 @@
                                                 $d = $defId ? $item->descriptions->firstWhere('language_id', $defId) : null;
                                                 $pd = $item->parent && $defId
                                                     ? $item->parent->descriptions->firstWhere('language_id', $defId)
+                                                    : null;
+                                                $heImg = isset($langIds['he'])
+                                                    ? optional($item->descriptions->firstWhere('language_id', $langIds['he']))->image
+                                                    : null;
+                                                $arImg = isset($langIds['ar'])
+                                                    ? optional($item->descriptions->firstWhere('language_id', $langIds['ar']))->image
                                                     : null;
                                             @endphp
                                             <tr>
@@ -82,12 +89,28 @@
                                                 <td>{{ $item->sort_order }}</td>
                                                 <td>{{ $d->short_description ?? '—' }}</td>
                                                 <td>{{ $pd->name ?? '—' }}</td>
-                                                <td>
-                                                    @if($item->image)
-                                                        <img src="{{ asset($item->image) }}" alt=""
-                                                             style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #dee2e6;">
+                                                <td class="text-center">
+                                                    @if($heImg)
+                                                        <a href="{{ asset(ltrim($heImg, '/')) }}" target="_blank" title="{{ $heImg }}">
+                                                            <img src="{{ asset(ltrim($heImg, '/')) }}" alt="he"
+                                                                 style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #dee2e6;"
+                                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                                                            <span class="text-muted" style="display:none;"><i class="fas fa-image"></i></span>
+                                                        </a>
                                                     @else
-                                                        <span class="text-muted" style="font-size:1.4rem;"><i class="fas fa-image"></i></span>
+                                                        <span class="text-muted"><i class="fas fa-image"></i></span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-center">
+                                                    @if($arImg)
+                                                        <a href="{{ asset(ltrim($arImg, '/')) }}" target="_blank" title="{{ $arImg }}">
+                                                            <img src="{{ asset(ltrim($arImg, '/')) }}" alt="ar"
+                                                                 style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #dee2e6;"
+                                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                                                            <span class="text-muted" style="display:none;"><i class="fas fa-image"></i></span>
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted"><i class="fas fa-image"></i></span>
                                                     @endif
                                                 </td>
                                                 <td>
@@ -106,7 +129,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="9" class="text-center">Нет данных</td>
+                                                <td colspan="10" class="text-center">Нет данных</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
