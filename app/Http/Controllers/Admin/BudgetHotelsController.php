@@ -122,11 +122,17 @@ class BudgetHotelsController extends Controller
         }
 
         try {
-            $data = $hotels->fetchOccupancyCell($hotelModel, $region, $key);
+            $data = $hotels->fetchOccupancyCell(
+                $hotelModel,
+                $region,
+                $key,
+                $request->boolean('skip_filled')
+            );
 
             return response()->json([
                 'ok' => true,
                 'saved' => true,
+                'skipped' => (bool) ($data['skipped'] ?? false),
                 'hotel' => $hotelModel->title,
                 'hotel_identifier' => $hotelModel->hotel_identifier,
                 'stored_2a_price' => (float) $hotelModel->price_usd,
@@ -134,6 +140,32 @@ class BudgetHotelsController extends Controller
                 'check_out' => $data['check_out'],
                 'fetched_at' => $data['fetched_at'],
                 'cell' => $data['cell'],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => SyncErrorMessage::format($e),
+            ], 502);
+        }
+    }
+
+    public function occupancyBatchHotels(string $slug, SwissHotelsService $hotels): JsonResponse
+    {
+        $region = $hotels->findRegion($slug);
+        if ($region === null) {
+            return response()->json(['ok' => false, 'message' => 'Регион не найден'], 404);
+        }
+
+        try {
+            $list = $hotels->hotelsForOccupancyBatch($slug);
+
+            return response()->json([
+                'ok' => true,
+                'slug' => $region->slug,
+                'label' => $region->label,
+                'keys' => $hotels->selectedOccupancyKeys(),
+                'hotels' => $list,
+                'count' => count($list),
             ]);
         } catch (\Throwable $e) {
             return response()->json([

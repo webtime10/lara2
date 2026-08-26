@@ -51,7 +51,8 @@ class FileManagerController extends Controller
             }
             $files[] = [
                 'name'  => $name,
-                'url'   => $this->uploadUrl . '/' . $name,
+                'url'   => asset(ltrim($this->uploadUrl.'/'.$name, '/')),
+                'path'  => $this->uploadUrl.'/'.$name,
                 'mtime' => filemtime($file),
             ];
         }
@@ -80,7 +81,8 @@ class FileManagerController extends Controller
 
         return response()->json([
             'success' => true,
-            'url'     => $this->uploadUrl . '/' . $name,
+            'url'     => asset(ltrim($this->uploadUrl.'/'.$name, '/')),
+            'path'    => $this->uploadUrl.'/'.$name,
             'name'    => $name,
         ]);
     }

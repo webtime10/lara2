@@ -82,6 +82,7 @@
                                                     'inputName' => 'image_'.$c,
                                                     'fieldId' => $c,
                                                     'label' => 'Изображение',
+                                                    'saveUrl' => route('admin.categories.image', $category->id),
                                                 ])
                                                 <div class="form-group">
                                                     <label for="name_{{ $c }}">Название региона @if($language->is_default)<span class="text-danger">*</span>@endif</label>
@@ -186,11 +187,12 @@
         $(document).on('click', '.fm-thumb-card', function (e) {
             if ($(e.target).closest('.fm-delete-btn').length) return;
             var url = $(this).data('url');
+            var path = $(this).data('path') || url;
             var lang = fmTargetLang;
             if (!lang) {
                 return;
             }
-            $('#input-category-image-' + lang).val(url);
+            $('#input-category-image-' + lang).val(path);
             $('#thumb-category-image-' + lang).attr('src', url).show();
             $('#thumb-category-placeholder-' + lang).hide();
             $('#modal-filemanager').modal('hide');
@@ -248,6 +250,44 @@
             $('#input-category-image-' + lang).val('');
             $('#thumb-category-image-' + lang).attr('src', '').hide();
             $('#thumb-category-placeholder-' + lang).show();
+        });
+
+        $(document).on('click', '.js-save-lang-image', function () {
+            var $btn = $(this);
+            var lang = $btn.data('lang');
+            var saveUrl = $btn.data('save-url');
+            var image = $('#input-category-image-' + lang).val() || '';
+            if (!saveUrl) {
+                alert('Сохранение фото доступно после создания региона');
+                return;
+            }
+            $btn.prop('disabled', true);
+            $.ajax({
+                url: saveUrl,
+                method: 'POST',
+                data: {
+                    _token: fmCsrf,
+                    language: lang,
+                    image: image
+                },
+                dataType: 'json'
+            }).done(function (res) {
+                if (res && res.ok) {
+                    $btn.removeClass('btn-success').addClass('btn-outline-success');
+                    setTimeout(function () {
+                        $btn.removeClass('btn-outline-success').addClass('btn-success');
+                    }, 1200);
+                } else {
+                    alert((res && res.message) ? res.message : 'Не удалось сохранить фото');
+                }
+            }).fail(function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : 'Ошибка сохранения фото';
+                alert(msg);
+            }).always(function () {
+                $btn.prop('disabled', false);
+            });
         });
 
         $('.js-category-description').summernote({

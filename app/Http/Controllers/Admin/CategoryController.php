@@ -229,6 +229,62 @@ class CategoryController extends Controller
             ->with('success', 'Регион успешно обновлён');
     }
 
+    public function updateImage(Request $request, string $category)
+    {
+        $categoryModel = Category::with('descriptions')->findOrFail($category);
+
+        $data = $request->validate([
+            'language' => 'required|string|max:16',
+            'image' => 'nullable|string|max:255',
+        ]);
+
+        $language = Language::query()->where('code', $data['language'])->first();
+        if (! $language) {
+            return response()->json(['ok' => false, 'message' => 'Язык не найден'], 422);
+        }
+
+        $image = trim((string) ($data['image'] ?? ''));
+        if ($image !== '' && ! str_starts_with($image, '/')) {
+            $image = '/'.ltrim($image, '/');
+        }
+        $image = $image !== '' ? $image : null;
+
+        $desc = $categoryModel->descriptions->firstWhere('language_id', $language->id);
+
+        if ($desc) {
+            $desc->update(['image' => $image]);
+        } else {
+            $defaultLang = Language::getDefault();
+            $fallback = $defaultLang
+                ? $categoryModel->descriptions->firstWhere('language_id', $defaultLang->id)
+                : $categoryModel->descriptions->first();
+            $name = trim((string) ($fallback->name ?? '')) ?: ('region-'.$categoryModel->id);
+
+            CategoryDescription::create([
+                'category_id' => $categoryModel->id,
+                'language_id' => $language->id,
+                'name' => $name,
+                'slug' => CategoryDescription::uniqueSlugForLanguage(
+                    $name,
+                    (int) $language->id,
+                    (int) $categoryModel->id
+                ),
+                'image' => $image,
+                'description' => null,
+            ]);
+        }
+
+        if ($language->is_default || ! $categoryModel->image) {
+            $categoryModel->update(['image' => $image ?: $categoryModel->image]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'image' => $image,
+            'preview' => $image ? asset(ltrim($image, '/')) : null,
+        ]);
+    }
+
     public function destroy(string $id)
     {
         $category = Category::findOrFail($id);

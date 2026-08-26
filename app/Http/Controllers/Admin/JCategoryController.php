@@ -19,15 +19,22 @@ class JCategoryController extends Controller
     {
         $pageTitle = 'Категории (Япония)';
         $contentLanguage = $this->contentLanguage();
-        $categories = JCategory::with(['parent.descriptions', 'descriptions', 'manufacturer'])
+        $categories = JCategory::with(['parent.descriptions', 'descriptions.language', 'manufacturer'])
             ->orderBy('sort_order')
             ->orderBy('id', 'desc')
             ->get();
+
+        $langIds = Language::query()
+            ->whereIn('code', ['he', 'ar'])
+            ->pluck('id', 'code')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         return view('admin.j-categories.index', [
             'categories' => $categories,
             'pageTitle' => $pageTitle,
             'defaultLanguage' => $contentLanguage,
+            'langIds' => $langIds,
         ]);
     }
 
@@ -200,6 +207,62 @@ class JCategoryController extends Controller
 
         return redirect()->route('admin.j-categories.index')
             ->with('success', 'Регион (Япония) успешно обновлён');
+    }
+
+    public function updateImage(Request $request, string $j_category)
+    {
+        $categoryModel = JCategory::with('descriptions')->findOrFail($j_category);
+
+        $data = $request->validate([
+            'language' => 'required|string|max:16',
+            'image' => 'nullable|string|max:255',
+        ]);
+
+        $language = Language::query()->where('code', $data['language'])->first();
+        if (! $language) {
+            return response()->json(['ok' => false, 'message' => 'Язык не найден'], 422);
+        }
+
+        $image = trim((string) ($data['image'] ?? ''));
+        if ($image !== '' && ! str_starts_with($image, '/')) {
+            $image = '/'.ltrim($image, '/');
+        }
+        $image = $image !== '' ? $image : null;
+
+        $desc = $categoryModel->descriptions->firstWhere('language_id', $language->id);
+
+        if ($desc) {
+            $desc->update(['image' => $image]);
+        } else {
+            $he = Language::query()->where('code', self::CONTENT_LANG)->first();
+            $fallback = $he
+                ? $categoryModel->descriptions->firstWhere('language_id', $he->id)
+                : $categoryModel->descriptions->first();
+            $name = trim((string) ($fallback->name ?? '')) ?: ('region-'.$categoryModel->id);
+
+            JCategoryDescription::create([
+                'j_category_id' => $categoryModel->id,
+                'language_id' => $language->id,
+                'name' => $name,
+                'slug' => JCategoryDescription::uniqueSlugForLanguage(
+                    $name,
+                    (int) $language->id,
+                    (int) $categoryModel->id
+                ),
+                'image' => $image,
+                'description' => null,
+            ]);
+        }
+
+        if ($language->code === self::CONTENT_LANG || ! $categoryModel->image) {
+            $categoryModel->update(['image' => $image ?: $categoryModel->image]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'image' => $image,
+            'preview' => $image ? asset(ltrim($image, '/')) : null,
+        ]);
     }
 
     public function destroy(string $id)

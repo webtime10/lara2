@@ -304,9 +304,9 @@ class SwissHotelsService
     /**
      * Одна ячейка occupancy через DataForSEO + сохранение.
      *
-     * @return array{check_in: string, check_out: string, fetched_at: string, cell: array{key: string, label: string, adults: int, children: list<int>, price: ?float, error: ?string, cost: ?float}}
+     * @return array{check_in: string, check_out: string, fetched_at: string, skipped?: bool, cell: array{key: string, label: string, adults: int, children: list<int>, price: ?float, error: ?string, cost: ?float}}
      */
-    public function fetchOccupancyCell(SwissHotel $hotel, SwissRegion $region, string $key): array
+    public function fetchOccupancyCell(SwissHotel $hotel, SwissRegion $region, string $key, bool $skipIfFilled = false): array
     {
         if (! $this->client->credentialsConfigured()) {
             throw new \RuntimeException('DATAFORSEO_LOGIN или DATAFORSEO_PASSWORD не заданы в .env');
@@ -319,51 +319,91 @@ class SwissHotelsService
             );
         }
 
-        $cell = null;
-        foreach ($this->occupancyGrid() as $item) {
-            if ($item['key'] === $key) {
-                $cell = $item;
-                break;
-            }
-        }
+        $cell = $this->resolveOccupancyCell($key);
         if ($cell === null) {
             throw new \InvalidArgumentException('Неизвестная ячейка occupancy: '.$key);
         }
 
-        $checkIn = now()->addDays(14)->format('Y-m-d');
-        $checkOut = now()->addDays(15)->format('Y-m-d');
+        if ($skipIfFilled) {
+            $existing = SwissHotelOccupancyPrice::query()
+                ->where('region_id', $region->id)
+                ->where('hotel_identifier', $identifier)
+                ->where('occupancy_key', $cell['key'])
+                ->whereNotNull('price_usd')
+                ->where('price_usd', '>', 0)
+                ->first();
+            if ($existing) {
+                return [
+                    'check_in' => $existing->check_in?->format('Y-m-d') ?? '',
+                    'check_out' => $existing->check_out?->format('Y-m-d') ?? '',
+                    'fetched_at' => $existing->fetched_at?->format('d.m.Y H:i') ?? now()->format('d.m.Y H:i'),
+                    'skipped' => true,
+                    'cell' => [
+                        'key' => $cell['key'],
+                        'label' => $cell['label'],
+                        'adults' => $cell['adults'],
+                        'children' => $cell['children'],
+                        'price' => (float) $existing->price_usd,
+                        'error' => null,
+                        'cost' => $existing->api_cost !== null ? (float) $existing->api_cost : null,
+                    ],
+                ];
+            }
+        }
+
+        $datePairs = [
+            [now()->addDays(7)->format('Y-m-d'), now()->addDays(8)->format('Y-m-d')],
+            [now()->addDays(14)->format('Y-m-d'), now()->addDays(15)->format('Y-m-d')],
+            [now()->addDays(30)->format('Y-m-d'), now()->addDays(31)->format('Y-m-d')],
+            [now()->addDays(60)->format('Y-m-d'), now()->addDays(61)->format('Y-m-d')],
+        ];
+
         $fetchedAt = now();
         $price = null;
         $error = null;
         $cost = null;
+        $checkIn = $datePairs[0][0];
+        $checkOut = $datePairs[0][1];
+        $lastApiError = null;
 
-        try {
-            $payload = [
-                'hotel_identifier' => $identifier,
-                'location_code' => (int) $region->location_code,
-                'language_code' => 'en',
-                'currency' => 'USD',
-                'check_in' => $checkIn,
-                'check_out' => $checkOut,
-                'adults' => $cell['adults'],
-            ];
-            if ($cell['children'] !== []) {
-                $payload['children'] = $cell['children'];
-            }
+        foreach ($datePairs as [$tryIn, $tryOut]) {
+            try {
+                $payload = [
+                    'hotel_identifier' => $identifier,
+                    'location_code' => (int) $region->location_code,
+                    'language_code' => 'en',
+                    'currency' => 'USD',
+                    'check_in' => $tryIn,
+                    'check_out' => $tryOut,
+                    'adults' => $cell['adults'],
+                ];
+                if ($cell['children'] !== []) {
+                    $payload['children'] = $cell['children'];
+                }
 
-            $response = $this->client->post(DataForSeoClient::HOTEL_INFO_URL, [$payload], 90);
-            $result = $response['tasks'][0]['result'][0] ?? null;
-            $prices = is_array($result) && is_array($result['prices'] ?? null) ? $result['prices'] : [];
-            $rawPrice = $prices['price'] ?? null;
-            $cost = isset($response['tasks'][0]['cost']) ? (float) $response['tasks'][0]['cost'] : null;
+                $response = $this->client->post(DataForSeoClient::HOTEL_INFO_URL, [$payload], 90);
+                $result = $response['tasks'][0]['result'][0] ?? null;
+                $prices = is_array($result) && is_array($result['prices'] ?? null) ? $result['prices'] : [];
+                $rawPrice = $prices['price'] ?? null;
+                $cost = isset($response['tasks'][0]['cost']) ? (float) $response['tasks'][0]['cost'] : null;
+                $checkIn = $tryIn;
+                $checkOut = $tryOut;
 
-            if ($rawPrice !== null && (float) $rawPrice > 0) {
-                $price = (float) $rawPrice;
-            } else {
+                if ($rawPrice !== null && (float) $rawPrice > 0) {
+                    $price = (float) $rawPrice;
+                    $error = null;
+                    break;
+                }
+
                 $error = 'Нет цены в ответе API';
+            } catch (\Throwable $e) {
+                $lastApiError = $e->getMessage();
+                $error = $lastApiError;
             }
-        } catch (\Throwable $e) {
-            $error = $e->getMessage();
+        }
+
+        if ($price === null && $error === null) {
+            $error = $lastApiError ?: 'Нет цены в ответе API';
         }
 
         SwissHotelOccupancyPrice::query()->updateOrCreate(
@@ -388,6 +428,7 @@ class SwissHotelsService
             'check_in' => $checkIn,
             'check_out' => $checkOut,
             'fetched_at' => $fetchedAt->format('d.m.Y H:i'),
+            'skipped' => false,
             'cell' => [
                 'key' => $cell['key'],
                 'label' => $cell['label'],
@@ -398,6 +439,51 @@ class SwissHotelsService
                 'cost' => $cost,
             ],
         ];
+    }
+
+    /**
+     * Отели кантона для пакетного прогона occupancy.
+     *
+     * @return list<array{id: int, title: string, hotel_identifier: ?string}>
+     */
+    public function hotelsForOccupancyBatch(string $slug): array
+    {
+        $region = $this->findRegion($slug);
+        if ($region === null) {
+            throw new \InvalidArgumentException('Неизвестный регион: '.$slug);
+        }
+
+        return SwissHotel::query()
+            ->where('region_id', $region->id)
+            ->whereNotNull('hotel_identifier')
+            ->where('hotel_identifier', '!=', '')
+            ->orderBy('id')
+            ->get(['id', 'title', 'hotel_identifier'])
+            ->map(static fn (SwissHotel $h) => [
+                'id' => (int) $h->id,
+                'title' => (string) $h->title,
+                'hotel_identifier' => (string) $h->hotel_identifier,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array{key: string, label: string, adults: int, children: list<int>}|null
+     */
+    private function resolveOccupancyCell(string $key): ?array
+    {
+        foreach (HotelOccupancyCatalog::all() as $cell) {
+            if ($cell['key'] === $key) {
+                return [
+                    'key' => $cell['key'],
+                    'label' => $cell['label'],
+                    'adults' => $cell['adults'],
+                    'children' => $cell['children'],
+                ];
+            }
+        }
+
+        return null;
     }
 
     /**

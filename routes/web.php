@@ -122,8 +122,10 @@ Route::prefix('admin')
 
         // Ресурсы
         Route::post('categories/bulk-delete', [CategoryController::class, 'bulkDelete'])->name('categories.bulk-delete');
+        Route::post('categories/{category}/image', [CategoryController::class, 'updateImage'])->name('categories.image');
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::post('j-categories/bulk-delete', [JCategoryController::class, 'bulkDelete'])->name('j-categories.bulk-delete');
+        Route::post('j-categories/{j_category}/image', [JCategoryController::class, 'updateImage'])->name('j-categories.image');
         Route::resource('j-categories', JCategoryController::class)->except(['show']);
         Route::resource('languages', LanguageController::class)->except(['show']);
         Route::resource('products', ProductController::class)->except(['show']);
@@ -146,6 +148,7 @@ Route::prefix('admin')
             Route::put('settings', [BudgetHotelSettingsController::class, 'update'])->name('settings.update');
             Route::post('sync-all/complete', [BudgetHotelsController::class, 'completeFullSync'])->name('sync-all.complete');
             Route::post('sync/{slug}', [BudgetHotelsController::class, 'syncRegion'])->name('sync');
+            Route::get('{slug}/occupancy-batch-hotels', [BudgetHotelsController::class, 'occupancyBatchHotels'])->name('occupancy-batch-hotels');
             Route::get('{slug}/hotel/{hotel}', [BudgetHotelsController::class, 'hotel'])->name('hotel');
             Route::post('{slug}/hotel/{hotel}/occupancy', [BudgetHotelsController::class, 'occupancyPrices'])->name('hotel.occupancy');
             Route::get('{slug}', [BudgetHotelsController::class, 'show'])->name('show');

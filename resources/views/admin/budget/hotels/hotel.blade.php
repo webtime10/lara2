@@ -195,14 +195,17 @@
         return $.ajax({
             url: url,
             method: 'POST',
-            timeout: 120000,
+            timeout: 180000,
             headers: { 'X-CSRF-TOKEN': csrf },
-            data: { key: key },
+            data: { key: key, skip_filled: onlyMissingFlag ? 1 : 0 },
             dataType: 'json'
         });
     }
 
+    var onlyMissingFlag = false;
+
     function runQueue(onlyMissing) {
+        onlyMissingFlag = !!onlyMissing;
         if (running) return;
         if (!hasId) {
             setAlert('warning', 'Нет hotel_identifier. Откройте список кантона и нажмите «Обновить из API».');
