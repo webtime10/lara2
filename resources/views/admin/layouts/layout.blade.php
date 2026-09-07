@@ -362,9 +362,15 @@
                         </a>
                         <ul class="nav nav-treeview">
                             <li class="nav-item">
-                                <a href="{{ route('admin.weather.index') }}" class="nav-link {{ request()->routeIs('admin.weather.*') ? 'active' : '' }}">
+                                <a href="{{ route('admin.weather.index', 'ch') }}" class="nav-link {{ request()->routeIs('admin.weather.*') && request()->route('country') === 'ch' ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Швейцария</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.weather.index', 'jp') }}" class="nav-link {{ request()->routeIs('admin.weather.*') && request()->route('country') === 'jp' ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Япония</p>
                                 </a>
                             </li>
                         </ul>
@@ -378,7 +384,7 @@
                             </p>
                         </a>
                         <ul class="nav nav-treeview">
-                            <li class="nav-item has-treeview {{ $promptsMenuActive ? 'menu-open' : '' }}">
+                            <li class="nav-item has-treeview {{ (request()->routeIs('admin.prompts-wp.weather*') && request()->route('country') === 'ch') || request()->routeIs('admin.prompts-wp.budget*') ? 'menu-open' : '' }}">
                                 <a href="#" class="nav-link">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>
@@ -388,7 +394,7 @@
                                 </a>
                                 <ul class="nav nav-treeview">
                                     <li class="nav-item">
-                                        <a href="{{ route('admin.prompts-wp.weather') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.weather*') ? 'active' : '' }}">
+                                        <a href="{{ route('admin.prompts-wp.weather', 'ch') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.weather*') && request()->route('country') === 'ch' ? 'active' : '' }}">
                                             <i class="far fa-dot-circle nav-icon"></i>
                                             <p>Погода</p>
                                         </a>
@@ -397,6 +403,23 @@
                                         <a href="{{ route('admin.prompts-wp.budget') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.budget*') ? 'active' : '' }}">
                                             <i class="far fa-dot-circle nav-icon"></i>
                                             <p>Бюджет</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item has-treeview {{ request()->routeIs('admin.prompts-wp.weather*') && request()->route('country') === 'jp' ? 'menu-open' : '' }}">
+                                <a href="#" class="nav-link">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>
+                                        Япония
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.prompts-wp.weather', 'jp') }}" class="nav-link {{ request()->routeIs('admin.prompts-wp.weather*') && request()->route('country') === 'jp' ? 'active' : '' }}">
+                                            <i class="far fa-dot-circle nav-icon"></i>
+                                            <p>Погода</p>
                                         </a>
                                     </li>
                                 </ul>

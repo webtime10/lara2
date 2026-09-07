@@ -148,6 +148,7 @@ Route::prefix('admin')
             Route::put('settings', [BudgetHotelSettingsController::class, 'update'])->name('settings.update');
             Route::post('sync-all/complete', [BudgetHotelsController::class, 'completeFullSync'])->name('sync-all.complete');
             Route::post('sync/{slug}', [BudgetHotelsController::class, 'syncRegion'])->name('sync');
+            Route::get('occupancy-batch-all', [BudgetHotelsController::class, 'occupancyBatchAll'])->name('occupancy-batch-all');
             Route::get('{slug}/occupancy-batch-hotels', [BudgetHotelsController::class, 'occupancyBatchHotels'])->name('occupancy-batch-hotels');
             Route::get('{slug}/hotel/{hotel}', [BudgetHotelsController::class, 'hotel'])->name('hotel');
             Route::post('{slug}/hotel/{hotel}/occupancy', [BudgetHotelsController::class, 'occupancyPrices'])->name('hotel.occupancy');
@@ -195,16 +196,27 @@ Route::prefix('admin')
             Route::get('{slug}', [FoodSampleController::class, 'show'])->name('show');
         });
 
-        Route::get('weather', [WeatherController::class, 'index'])->name('weather.index');
-        Route::get('weather/status', [WeatherController::class, 'status'])->name('weather.status');
-        Route::post('weather/queue', [WeatherController::class, 'queue'])->name('weather.queue');
-        Route::post('weather/queue/{slug}', [WeatherController::class, 'queueRegion'])->name('weather.queue-region');
-        Route::post('weather/clear-all', [WeatherController::class, 'clearAll'])->name('weather.clear-all');
-        Route::post('weather/{slug}', [WeatherController::class, 'refresh'])->name('weather.refresh');
+        Route::redirect('weather', '/admin/weather/ch');
+        Route::prefix('weather/{country}')
+            ->where(['country' => 'ch|jp'])
+            ->group(function () {
+                Route::get('/', [WeatherController::class, 'index'])->name('weather.index');
+                Route::get('status', [WeatherController::class, 'status'])->name('weather.status');
+                Route::post('queue', [WeatherController::class, 'queue'])->name('weather.queue');
+                Route::post('queue/{slug}', [WeatherController::class, 'queueRegion'])->name('weather.queue-region');
+                Route::post('stop', [WeatherController::class, 'stop'])->name('weather.stop');
+                Route::post('clear-all', [WeatherController::class, 'clearAll'])->name('weather.clear-all');
+                Route::post('{slug}', [WeatherController::class, 'refresh'])->name('weather.refresh');
+            });
 
         Route::prefix('prompts-wp')->name('prompts-wp.')->group(function () {
-            Route::get('weather', [WeatherPromptController::class, 'edit'])->name('weather');
-            Route::post('weather/save', [WeatherPromptController::class, 'save'])->name('weather.save');
+            Route::redirect('weather', '/admin/prompts-wp/weather/ch');
+            Route::get('weather/{country}', [WeatherPromptController::class, 'edit'])
+                ->where(['country' => 'ch|jp'])
+                ->name('weather');
+            Route::post('weather/{country}/save', [WeatherPromptController::class, 'save'])
+                ->where(['country' => 'ch|jp'])
+                ->name('weather.save');
             Route::get('budget', [BudgetPromptController::class, 'edit'])->name('budget');
             Route::post('budget/save', [BudgetPromptController::class, 'save'])->name('budget.save');
         });

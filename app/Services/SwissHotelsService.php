@@ -468,6 +468,97 @@ class SwissHotelsService
     }
 
     /**
+     * План пакетного прогона: только незалитые ячейки по галочкам «по посетителям».
+     *
+     * @param  string|null  $slug  null = все кантоны
+     * @return array{
+     *   keys: list<string>,
+     *   key_labels: array<string, string>,
+     *   jobs: list<array{region_slug: string, region_label: string, hotel_id: int, title: string, key: string}>,
+     *   stats: array{hotels: int, total: int, done: int, pending: int}
+     * }
+     */
+    public function occupancyBatchPlan(?string $slug = null): array
+    {
+        $keys = $this->selectedOccupancyKeys();
+        $keyLabels = [];
+        foreach (HotelOccupancyCatalog::all() as $cell) {
+            if (in_array($cell['key'], $keys, true)) {
+                $keyLabels[$cell['key']] = $cell['label'];
+            }
+        }
+
+        $regionsQuery = SwissRegion::query()->orderBy('label');
+        if ($slug !== null) {
+            $regionsQuery->where('slug', $slug);
+        }
+        $regions = $regionsQuery->get();
+
+        $jobs = [];
+        $hotelsCount = 0;
+        $done = 0;
+        $total = 0;
+
+        foreach ($regions as $region) {
+            $hotels = SwissHotel::query()
+                ->where('region_id', $region->id)
+                ->whereNotNull('hotel_identifier')
+                ->where('hotel_identifier', '!=', '')
+                ->orderBy('id')
+                ->get(['id', 'title', 'hotel_identifier']);
+
+            if ($hotels->isEmpty() || $keys === []) {
+                continue;
+            }
+
+            $hotelsCount += $hotels->count();
+            $total += $hotels->count() * count($keys);
+
+            $filled = SwissHotelOccupancyPrice::query()
+                ->where('region_id', $region->id)
+                ->whereIn('hotel_identifier', $hotels->pluck('hotel_identifier')->all())
+                ->whereIn('occupancy_key', $keys)
+                ->whereNotNull('price_usd')
+                ->where('price_usd', '>', 0)
+                ->get(['hotel_identifier', 'occupancy_key']);
+
+            $filledMap = [];
+            foreach ($filled as $row) {
+                $filledMap[$row->hotel_identifier.'|'.$row->occupancy_key] = true;
+            }
+
+            foreach ($hotels as $hotel) {
+                $identifier = (string) $hotel->hotel_identifier;
+                foreach ($keys as $key) {
+                    if (isset($filledMap[$identifier.'|'.$key])) {
+                        $done++;
+                        continue;
+                    }
+                    $jobs[] = [
+                        'region_slug' => (string) $region->slug,
+                        'region_label' => (string) $region->label,
+                        'hotel_id' => (int) $hotel->id,
+                        'title' => (string) $hotel->title,
+                        'key' => (string) $key,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'keys' => $keys,
+            'key_labels' => $keyLabels,
+            'jobs' => $jobs,
+            'stats' => [
+                'hotels' => $hotelsCount,
+                'total' => $total,
+                'done' => $done,
+                'pending' => count($jobs),
+            ],
+        ];
+    }
+
+    /**
      * @return array{key: string, label: string, adults: int, children: list<int>}|null
      */
     private function resolveOccupancyCell(string $key): ?array
@@ -488,6 +579,7 @@ class SwissHotelsService
 
     /**
      * DataForSEO иногда отдаёт один отель дважды — оставляем одну запись (минимальная цена).
+     * Ключ как у MySQL unicode_ci: Hôtel ≈ Hotel, иначе падает unique(region_id, title).
      *
      * @param  list<array{title: string, hotel_identifier: ?string, stars: ?int, price: float}>  $items
      * @return list<array{title: string, hotel_identifier: ?string, stars: ?int, price: float}>
@@ -497,12 +589,44 @@ class SwissHotelsService
         $unique = [];
 
         foreach ($items as $item) {
-            $key = mb_strtolower($item['title']);
-            if (! isset($unique[$key]) || $item['price'] < $unique[$key]['price']) {
+            $key = $this->titleDedupeKey($item['title']);
+            if (! isset($unique[$key])) {
+                $unique[$key] = $item;
+                continue;
+            }
+
+            $current = $unique[$key];
+            if ($item['price'] < $current['price']) {
+                $unique[$key] = $item;
+                continue;
+            }
+
+            // При равной цене предпочитаем запись с hotel_identifier.
+            if (
+                $item['price'] === $current['price']
+                && empty($current['hotel_identifier'])
+                && ! empty($item['hotel_identifier'])
+            ) {
                 $unique[$key] = $item;
             }
         }
 
         return array_values($unique);
+    }
+
+    private function titleDedupeKey(string $title): string
+    {
+        $title = mb_strtolower(trim($title));
+        if (class_exists(\Normalizer::class)) {
+            $decomposed = \Normalizer::normalize($title, \Normalizer::FORM_D);
+            if (is_string($decomposed)) {
+                $title = preg_replace('/\p{Mn}/u', '', $decomposed) ?? $title;
+            }
+        }
+        // Тире/дефисы и пробелы — как в unicode_ci часто «слипаются» у близких названий.
+        $title = preg_replace('/[\x{2010}-\x{2015}\x{2212}\x{FE58}\x{FE63}\x{FF0D}\-‧·]+/u', '-', $title) ?? $title;
+        $title = preg_replace('/\s+/u', ' ', $title) ?? $title;
+
+        return $title;
     }
 }

@@ -11,7 +11,7 @@
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
                         <li class="breadcrumb-item">Промты</li>
-                        <li class="breadcrumb-item">Швейцария</li>
+                        <li class="breadcrumb-item">{{ $countryLabel }}</li>
                         <li class="breadcrumb-item active">Погода</li>
                     </ol>
                 </div>
@@ -25,7 +25,7 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h3 class="card-title mb-0">Промты / Погода — главный промт</h3>
+                            <h3 class="card-title mb-0">Промты / {{ $countryLabel }} / Погода — главный промт</h3>
                             <button type="button" id="saveWeatherPrompt" class="btn btn-primary float-right">
                                 <i class="fa fa-save"></i> Сохранить
                             </button>
@@ -67,15 +67,15 @@
                                 @foreach($promptLangCodes as $i => $code)
                                     <div class="tab-pane fade {{ $i === 0 ? 'show active' : '' }}" id="prompt-lang-{{ $code }}">
                                         <div class="form-group mb-0">
-                                            <label for="glavnyy_prompt_{{ $code }}">Главный промт ({{ strtoupper($code) }})</label>
+                                            <label for="{{ $fieldPrefix }}{{ $code }}">Главный промт ({{ strtoupper($code) }})</label>
                                             <textarea
-                                                id="glavnyy_prompt_{{ $code }}"
-                                                name="glavnyy_prompt_{{ $code }}"
+                                                id="{{ $fieldPrefix }}{{ $code }}"
+                                                name="{{ $fieldPrefix }}{{ $code }}"
                                                 class="form-control prompt-lang-textarea"
                                                 data-prompt-lang="{{ $code }}"
                                                 rows="14"
                                                 placeholder="Промт для языка {{ $code }}..."
-                                            >{{ old('glavnyy_prompt_'.$code, $promptsByCode[$code] ?? '') }}</textarea>
+                                            >{{ old($fieldPrefix.$code, $promptsByCode[$code] ?? '') }}</textarea>
                                         </div>
                                     </div>
                                 @endforeach
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        fetch(@json(route('admin.prompts-wp.weather.save', [], false)), {
+        fetch(@json($saveUrl), {
             method: 'POST',
             credentials: 'same-origin',
             headers: {

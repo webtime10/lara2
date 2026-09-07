@@ -8,8 +8,8 @@
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ route('admin.index') }}">Главная</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.weather.index') }}">Погода</a></li>
-                        <li class="breadcrumb-item active">Швейцария</li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.weather.index', $country) }}">Погода</a></li>
+                        <li class="breadcrumb-item active">{{ $countryLabel }}</li>
                     </ol>
                 </div>
             </div>
@@ -34,8 +34,9 @@
                             </p>
                             <small class="form-text text-muted">
                                 Промт:
-                                <a href="{{ route('admin.prompts-wp.weather') }}">Промты → Швейцария → Погода</a>.
-                                Очередь: 1 клетка = 1 джоб, паузы {{ \App\Services\WeatherSyncDispatcher::staggerLabel() }} между джобами, авто — <strong>1-го числа в 03:00</strong>.
+                                <a href="{{ $promptUrl }}">{{ $promptAdminPath }}</a>.
+                                Очередь: 1 клетка = 1 джоб, паузы {{ \App\Services\WeatherSyncDispatcher::staggerLabel() }} между джобами, авто — <strong>{{ $scheduleHint }}</strong> полная заливка заново; если что-то не залилось — дозаливка пустых волнами.
+                                При сбоях Gemini джоб сам повторяет (до 10 раз); после прогона с fail — сразу автодозаливка пустых волнами, пока всё не зальётся (Стоп прерывает).
                             </small>
                             @if ($lastScheduledSuccess)
                                 <p class="mb-0 mt-2">
@@ -62,17 +63,20 @@
                             <button type="button" id="weatherQueueForceBtn" class="btn btn-outline-warning ml-1" @disabled(! $tableExists || ! $runsExist)>
                                 Обновить всё
                             </button>
-                            <button type="button" id="weatherClearAllBtn" class="btn btn-danger ml-2" data-url="{{ route('admin.weather.clear-all', [], false) }}" @disabled(! $tableExists)>
+                            <button type="button" id="weatherStopBtn" class="btn btn-outline-danger ml-1" style="display: none;" @disabled(! $tableExists || ! $runsExist)>
+                                Стоп
+                            </button>
+                            <button type="button" id="weatherClearAllBtn" class="btn btn-danger ml-2" data-url="{{ $clearAllUrl }}" @disabled(! $tableExists)>
                                 Очистить всё
                             </button>
                             <small class="form-text text-muted mt-1">
-                                <strong>Дозалить</strong> — только пустые («—»). <strong>Обновить всё</strong> — перезаписать все клетки.
+                                <strong>Дозалить</strong> — только пустые («—»). <strong>Обновить всё</strong> — перезаписать все клетки. <strong>Стоп</strong> — остановить текущий прогон.
                             </small>
                         </div>
                     </div>
 
                     <p class="mb-0 mt-2 text-muted small">
-                        Воркер: <code>php artisan queue:work --queue=weather</code>
+                        Воркер: <code>php artisan queue:work</code>
                         · планировщик: <code>php artisan schedule:work</code> (или cron <code>* * * * * php artisan schedule:run</code>)
                     </p>
 
@@ -109,7 +113,7 @@
                                     $stats = $row['stats'];
                                     $filled = (int) $row['filled'];
                                     $missing = 12 - $filled;
-                                    $regionQueueUrl = route('admin.weather.queue-region', $canton['slug'], false);
+                                    $regionQueueUrl = route('admin.weather.queue-region', [$country, $canton['slug']], false);
                                 @endphp
                                 <tr>
                                     <td class="text-left font-weight-bold" style="position: sticky; left: 0; background: #fff; z-index: 1;">
@@ -135,7 +139,15 @@
                                                     style="font-size: 0.72rem; line-height: 1.25;"
                                                     title="t: {{ $stat->average_temperature }}&#10;осадки: {{ $stat->precipitation }}&#10;солнце: {{ $stat->sunny_days }}&#10;сезон: {{ $stat->season }}"
                                                 >
-                                                    <strong>{{ $stat->average_temperature }}</strong>
+                                                    @php
+                                                        $tempParts = array_values(array_filter(array_map('trim', explode('|', (string) $stat->average_temperature)), static fn ($p) => $p !== ''));
+                                                    @endphp
+                                                    @if (count($tempParts) === 2)
+                                                        <strong>день {{ $tempParts[0] }}</strong>
+                                                        <br><strong>ночь {{ $tempParts[1] }}</strong>
+                                                    @else
+                                                        <strong>{{ $stat->average_temperature }}</strong>
+                                                    @endif
                                                     <br><span class="text-muted">{{ $stat->season }}</span>
                                                 </span>
                                             @else
@@ -184,6 +196,7 @@
 (function () {
     var queueEmptyBtn = document.getElementById('weatherQueueEmptyBtn');
     var queueForceBtn = document.getElementById('weatherQueueForceBtn');
+    var stopBtn = document.getElementById('weatherStopBtn');
     var clearAllBtn = document.getElementById('weatherClearAllBtn');
     var progressBox = document.getElementById('weatherProgress');
     var progressBar = document.getElementById('weatherProgressBar');
@@ -192,12 +205,20 @@
     var csrf = document.querySelector('meta[name="csrf-token"]');
     var queueAllUrl = @json($queueAllUrl);
     var statusUrl = @json($statusUrl);
+    var stopUrl = @json($stopUrl);
     var activeRun = @json($activeRun ? [
         'uuid' => $activeRun->uuid,
     ] : null);
     var pollTimer = null;
     var currentUuid = activeRun ? activeRun.uuid : null;
     var lastLogCount = 0;
+    var stopping = false;
+
+    function setStopVisible(visible) {
+        if (!stopBtn) return;
+        stopBtn.style.display = visible ? 'inline-block' : 'none';
+        stopBtn.disabled = !visible || stopping;
+    }
 
     function postJson(url, body) {
         return fetch(url, {
@@ -271,25 +292,67 @@
             + ' fail=' + run.failed
             + ' / ' + run.total;
         renderLogs(run.logs || []);
+        setStopVisible(!run.finished);
         if (run.finished) {
             progressBar.classList.remove('progress-bar-animated');
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
-            if (run.failed === 0) {
+            if (run.status === 'cancelled') {
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+                statusEl.textContent = (run.last_message || 'Остановлено')
+                    + ' · ok=' + run.succeeded
+                    + ' skip=' + run.skipped
+                    + ' fail=' + run.failed
+                    + ' / ' + run.total;
+            } else if (run.failed === 0) {
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
                 statusEl.textContent = 'Готово. Обновляем страницу...';
                 window.setTimeout(function () { window.location.reload(); }, 1500);
+            } else {
+                // Есть fail — ждём волну автодозаливки и подхватываем новый run
+                statusEl.textContent = (run.last_message || 'Есть ошибки')
+                    + ' · ждём автодозаливку пустых...';
+                setStopVisible(true);
+                waitForNextRun(run.uuid);
             }
         } else {
             progressBar.classList.add('progress-bar-animated');
         }
     }
 
+    function waitForNextRun(finishedUuid) {
+        if (pollTimer) clearInterval(pollTimer);
+        var attempts = 0;
+        pollTimer = setInterval(function () {
+            attempts++;
+            getJson(statusUrl).then(function (res) {
+                if (!res.ok || !res.json || !res.json.run) return;
+                var r = res.json.run;
+                if (!r.finished && r.uuid !== finishedUuid) {
+                    startPolling(r.uuid);
+                    applyRun(r);
+                    return;
+                }
+                if (attempts > 160) {
+                    // ~6–7 мин ожидания новой волны (REFILL_DELAY = 5 мин)
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                    setStopVisible(false);
+                    statusEl.textContent = 'Автодозаливка не стартовала. Нажмите «Дозалить».';
+                }
+            });
+        }, 2500);
+    }
+
     function startPolling(uuid) {
         currentUuid = uuid;
         lastLogCount = 0;
         logEl.innerHTML = '';
+        setStopVisible(true);
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = setInterval(function () {
             getJson(statusUrl + '?uuid=' + encodeURIComponent(currentUuid)).then(function (res) {
@@ -312,6 +375,7 @@
         statusEl.textContent = 'Ставим задачи в очередь...';
         lastLogCount = 0;
         logEl.innerHTML = '';
+        setStopVisible(true);
 
         postJson(url || queueAllUrl, { force: !!force }).then(function (res) {
             if (res.ok && res.json && res.json.ok) {
@@ -323,10 +387,12 @@
             } else {
                 addLog((res.json && res.json.message) ? res.json.message : 'Ошибка постановки', false);
                 statusEl.textContent = 'Ошибка';
+                setStopVisible(false);
             }
         }).catch(function () {
             addLog('Сеть', false);
             statusEl.textContent = 'Ошибка сети';
+            setStopVisible(false);
         });
     }
 
@@ -338,6 +404,30 @@
     queueForceBtn?.addEventListener('click', function () {
         if (!confirm('Полностью обновить все клетки через очередь?')) return;
         queueStart(true);
+    });
+
+    stopBtn?.addEventListener('click', function () {
+        if (!currentUuid) {
+            alert('Нет активного запуска');
+            return;
+        }
+        if (!confirm('Остановить текущий прогон? Очередь будет очищена.')) return;
+        stopping = true;
+        setStopVisible(true);
+        statusEl.textContent = 'Останавливаем...';
+        postJson(stopUrl, { uuid: currentUuid }).then(function (res) {
+            stopping = false;
+            if (res.ok && res.json && res.json.ok && res.json.run) {
+                applyRun(res.json.run);
+            } else {
+                setStopVisible(!!currentUuid);
+                alert((res.json && res.json.message) || 'Не удалось остановить');
+            }
+        }).catch(function () {
+            stopping = false;
+            setStopVisible(!!currentUuid);
+            alert('Ошибка сети при остановке');
+        });
     });
 
     clearAllBtn?.addEventListener('click', function () {
@@ -363,6 +453,7 @@
     });
 
     if (currentUuid) {
+        setStopVisible(true);
         startPolling(currentUuid);
         getJson(statusUrl + '?uuid=' + encodeURIComponent(currentUuid)).then(function (res) {
             if (res.ok && res.json && res.json.run) applyRun(res.json.run);

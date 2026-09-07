@@ -19,6 +19,7 @@ use App\Models\WeatherPromt;
 use App\Support\WeatherAiModelChoice;
 // Список допустимых моделей (Gemini Flash/Pro, OpenAI…) и normalize()
 
+use App\Support\WeatherCountry;
 use Illuminate\Support\Facades\Cache;
 // Фасад кэша Laravel (file/redis — из CACHE_STORE в .env)
 
@@ -88,14 +89,15 @@ class WeatherIngestService
 
             if (in_array($language, Language::activeCodes(), true) && $month !== '' && $region !== '') {
                 // Кэш только для активных языков из БД и непустых month/region
+                $country = WeatherCountry::normalize((string) ($payload['country'] ?? WeatherCountry::CH));
                 $modelRaw = WeatherPromt::where('name', WeatherAiModelChoice::SETTING_NAME)->value('content');
                 // Из БД: какая модель выбрана в админке (weather_ai_model)
 
                 $modelKey = WeatherAiModelChoice::normalize(is_string($modelRaw) ? $modelRaw : null);
                 // Приводим к внутреннему ключу (gemini-flash, openai-gpt-4o…)
 
-                $promptName = 'glavnyy_prompt_'.$language;
-                // Имя записи промта для языка, напр. glavnyy_prompt_en
+                $promptName = WeatherCountry::promptPrefix($country).$language;
+                // Имя записи промта для языка, напр. glavnyy_prompt_en / japan_glavnyy_prompt_en
 
                 $promptText = WeatherPromt::where('name', $promptName)->value('content');
                 // Текст промта из таблицы weather_promt
@@ -105,15 +107,15 @@ class WeatherIngestService
 
                 if ((! is_string($promptText) || trim($promptText) === '') && $defaultCode !== '' && $language === $defaultCode) {
                     // Если промта для языка нет — для языка по умолчанию берём старый ключ
-                    $promptText = WeatherPromt::where('name', 'glavnyy_prompt')->value('content');
+                    $promptText = WeatherPromt::where('name', WeatherCountry::legacyPromptName($country))->value('content');
                     // Легаси-имя одного общего промта до разбивки по языкам
                 }
 
                 $promptHash = sha1(is_string($promptText) ? trim($promptText) : '');
                 // Хэш промта: сменили текст в админке — другой кэш
 
-                $cacheKey = self::CACHE_KEY_PREFIX.sha1('v1|'.$language.'|'.$month.'|'.$region.'|'.$modelKey.'|'.$promptHash);
-                // Итоговый ключ: язык + месяц + регион + модель + версия промта
+                $cacheKey = self::CACHE_KEY_PREFIX.sha1('v2|'.$country.'|'.$language.'|'.$month.'|'.$region.'|'.$modelKey.'|'.$promptHash);
+                // Итоговый ключ: страна + язык + месяц + регион + модель + версия промта
 
                 $stored = Cache::get($cacheKey);
                 // Читаем сохранённый ответ из кэша (file/database/redis)

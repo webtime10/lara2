@@ -157,15 +157,39 @@ class BudgetHotelsController extends Controller
         }
 
         try {
-            $list = $hotels->hotelsForOccupancyBatch($slug);
+            $plan = $hotels->occupancyBatchPlan($slug);
 
             return response()->json([
                 'ok' => true,
                 'slug' => $region->slug,
                 'label' => $region->label,
-                'keys' => $hotels->selectedOccupancyKeys(),
-                'hotels' => $list,
-                'count' => count($list),
+                'keys' => $plan['keys'],
+                'key_labels' => $plan['key_labels'],
+                'jobs' => $plan['jobs'],
+                'stats' => $plan['stats'],
+                // backward-compatible fields
+                'hotels' => $hotels->hotelsForOccupancyBatch($slug),
+                'count' => $plan['stats']['hotels'],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => SyncErrorMessage::format($e),
+            ], 502);
+        }
+    }
+
+    public function occupancyBatchAll(SwissHotelsService $hotels): JsonResponse
+    {
+        try {
+            $plan = $hotels->occupancyBatchPlan(null);
+
+            return response()->json([
+                'ok' => true,
+                'keys' => $plan['keys'],
+                'key_labels' => $plan['key_labels'],
+                'jobs' => $plan['jobs'],
+                'stats' => $plan['stats'],
             ]);
         } catch (\Throwable $e) {
             return response()->json([

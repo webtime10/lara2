@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class WeatherMonthStat extends Model
 {
     protected $fillable = [
+        'country',
         'region_slug',
         'region_name_ru',
         'month',

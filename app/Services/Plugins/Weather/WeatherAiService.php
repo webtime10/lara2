@@ -22,6 +22,7 @@ use App\Services\OpenAiService;
 use App\Support\WeatherAiModelChoice;
 // Константы моделей и normalize() выбора из админки
 
+use App\Support\WeatherCountry;
 use Illuminate\Support\Facades\Log;
 // Логи ошибок/предупреждений AI
 
@@ -66,21 +67,22 @@ class WeatherAiService
             return ['ok' => false, 'message' => 'Не заданы месяц или регион.'];
         }
 
-        $instruction = $this->loadMainPrompt($language);
-        // Главный промт из БД для glavnyy_prompt_{code}
+        $instruction = $this->loadMainPrompt($language, WeatherCountry::normalize((string) ($payload['country'] ?? WeatherCountry::CH)));
+        // Главный промт из БД для glavnyy_prompt_{code} / japan_glavnyy_prompt_{code}
 
         if ($instruction === '') {
-            // Промт не заполнен в админке → Промты → Швейцария → Погода
+            $country = WeatherCountry::normalize((string) ($payload['country'] ?? WeatherCountry::CH));
+            // Промт не заполнен в админке
             return [
                 'ok' => false,
-                'message' => 'Главный промт для языка '.$language.' не задан (админка → Промты → Швейцария → Погода).',
+                'message' => 'Главный промт для языка '.$language.' не задан (админка → '.WeatherCountry::promptAdminPath($country).').',
             ];
         }
 
         $instruction = $this->applyPlaceholders($instruction, $monthName, $regionName, $language);
         // Подставляем {month_name}, {region_name}, {language} в текст промта
 
-        $instruction = $this->appendOutputRules($instruction);
+        $instruction = $this->appendOutputRules($instruction, $language);
         // Дописываем жёсткие правила: только JSON, все поля заполнены
 
         $material = $this->buildMaterial($monthName, $regionName, $language);
@@ -143,7 +145,7 @@ class WeatherAiService
                 continue;
             }
 
-            $parsed = $this->parseWeatherJson($answer);
+            $parsed = $this->parseWeatherJson($answer, $language);
             if ($parsed === null) {
                 $lastMessage = 'Модель '.$modelKey.' вернула невалидный JSON.';
                 Log::warning('[plugin:weather] invalid_json', [
@@ -171,11 +173,12 @@ class WeatherAiService
         throw new RuntimeException($lastMessage ?: 'Все AI-модели не смогли рассчитать погоду.');
     }
 
-    private function loadMainPrompt(string $language): string
+    private function loadMainPrompt(string $language, string $country = WeatherCountry::CH): string
     // Загрузка промта по коду языка из weather_promt
     {
-        $name = 'glavnyy_prompt_'.$language;
-        // Имя строки в БД, напр. glavnyy_prompt_he
+        $country = WeatherCountry::normalize($country);
+        $name = WeatherCountry::promptPrefix($country).$language;
+        // Имя строки в БД, напр. glavnyy_prompt_he / japan_glavnyy_prompt_he
 
         $content = WeatherPromt::where('name', $name)->value('content');
         // SELECT content WHERE name = ...
@@ -190,7 +193,7 @@ class WeatherAiService
 
         if ($defaultCode !== '' && $language === $defaultCode) {
             // Только для языка по умолчанию — fallback
-            $legacy = WeatherPromt::where('name', 'glavnyy_prompt')->value('content');
+            $legacy = WeatherPromt::where('name', WeatherCountry::legacyPromptName($country))->value('content');
             // Старое единое имя промта
 
             if (is_string($legacy) && trim($legacy) !== '') {
@@ -224,27 +227,53 @@ class WeatherAiService
         );
     }
 
-    private function appendOutputRules(string $instruction): string
-    // Добавить системные правила формата ответа (всегда одинаковые)
+    private function appendOutputRules(string $instruction, string $language): string
+    // Добавить системные правила формата ответа
     {
-        $suffix = <<<'TXT'
+        $suffix = match ($language) {
+            'ar' => <<<'TXT'
 
 ---
 SYSTEM (обязательно):
-По Month/Region из SOURCE TEXT опиши типичную погоду для туриста (это не «готовые цифры из БД», их нужно сформировать по знанию о климате).
-Все поля JSON должны быть заполнены непустыми строками. Пустые "" недопустимы.
+По Month/Region из SOURCE TEXT опиши типичную погоду для туриста.
+Все поля JSON — непустые строки на арабском. Пустые "" недопустимы.
+temperature / average_temperature: РОВНО 4 температуры — день (макс мин) и ночь (макс мин).
+Формат строго: "+12° +8°|+3° -2°". Внутри пары: сначала выше, потом ниже.
+precipitation: только "منخفض" или "متوسط" или "مرتفع"
+season: только "ربيع" или "صيف" или "خريف" или "شتاء"
 Верни только один JSON-объект, без Markdown и без текста до/после.
-TXT;
-        // Текст дописки к промту — модель обязана JSON
+TXT,
+            'he' => <<<'TXT'
+
+---
+SYSTEM (обязательно):
+По Month/Region из SOURCE TEXT опиши типичную погоду для туриста.
+Все поля JSON — непустые строки на иврите. Пустые "" недопустимы.
+temperature / average_temperature: РОВНО 4 температуры — день (макс мин) и ночь (макс мин).
+Формат строго: "+12° +8°|+3° -2°". Внутри пары: сначала выше, потом ниже.
+precipitation: только "נמוך" или "בינוני" или "גבוה"
+season: только "אביב" или "קיץ" или "סתיו" или "חורף"
+Верни только один JSON-объект, без Markdown и без текста до/после.
+TXT,
+            default => <<<'TXT'
+
+---
+SYSTEM (обязательно):
+По Month/Region из SOURCE TEXT опиши типичную погоду для туриста.
+Все поля JSON должны быть заполнены непустыми строками. Пустые "" недопустимы.
+temperature / average_temperature: РОВНО 4 температуры — день (макс мин) и ночь (макс мин).
+Формат строго: "+12° +8°|+3° -2°". Внутри пары: сначала выше, потом ниже.
+Верни только один JSON-объект, без Markdown и без текста до/после.
+TXT,
+        };
 
         return rtrim($instruction).$suffix;
-        // Промт админки + правила в конце
     }
 
     /**
      * @return array{weather: array{temperature: string, precipitation: string, sunny_days: string, season: string, summary: string}, error: string|null}|null null = невалидный JSON
      */
-    private function parseWeatherJson(string $raw): ?array
+    private function parseWeatherJson(string $raw, string $language = 'ru'): ?array
     // Разбор сырого ответа модели в структуру weather
     {
         $raw = trim($raw);
@@ -305,7 +334,10 @@ TXT;
             // Ни один ключ не дал значения
         };
 
-        $temperature = $pick($data, ['temperature', 'average_temperature', 'temp']);
+        $temperature = $this->normalizeDayNightTemperature(
+            $pick($data, ['temperature', 'average_temperature', 'temp']),
+            $language
+        );
         // Температура — несколько возможных имён в JSON
 
         $precipitation = $pick($data, ['precipitation', 'precip']);
@@ -320,8 +352,12 @@ TXT;
         $summary = $pick($data, ['summary']);
         // Краткое описание (попадает в message)
 
+        $tempParts = $this->splitDayNightTemperature($temperature);
+
         $weather = [
             'temperature' => $temperature,
+            'temperature_day' => $tempParts['day'],
+            'temperature_night' => $tempParts['night'],
             'precipitation' => $precipitation,
             'sunny_days' => $sunnyDays,
             'season' => $season,
@@ -342,6 +378,96 @@ TXT;
             'error' => null,
         ];
         // Успешный разбор
+    }
+
+    /**
+     * Привести к "+12° +8°|+3° -2°" (день макс/мин | ночь макс/мин).
+     */
+    private function normalizeDayNightTemperature(string $raw, string $language = 'ru'): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (preg_match_all('/([+-]?\d+)/u', $raw, $m) && count($m[1]) >= 4) {
+            $n = array_map('intval', array_slice($m[1], 0, 4));
+
+            return $this->formatDayNightRanges($n[0], $n[1], $n[2], $n[3]);
+        }
+
+        if (preg_match('/^([+-]?\d+)\s*°?\s+([+-]?\d+)\s*°?$/u', $raw, $m)) {
+            $day = (int) $m[1];
+            $night = (int) $m[2];
+            $spread = max(2, (int) round(abs($day - $night) * 0.35));
+
+            return $this->formatDayNightRanges($day, $day - $spread, $night + $spread, $night);
+        }
+
+        if (preg_match('/([+-]?\d+)\s*(?:\.\.\.|…|-|–|—|до|to|إلى|עד)\s*([+-]?\d+)/ui', $raw, $m)) {
+            $a = (int) $m[1];
+            $b = (int) $m[2];
+            $dMin = min($a, $b);
+            $dMax = max($a, $b);
+
+            return $this->formatDayNightRanges($dMax, $dMin, $dMax - 5, $dMin - 8);
+        }
+
+        if (preg_match('/^([+-]?\d+)\s*°?$/u', $raw, $m)) {
+            $day = (int) $m[1];
+
+            return $this->formatDayNightRanges($day + 2, $day - 2, $day - 4, $day - 8);
+        }
+
+        return $raw;
+    }
+
+    /**
+     * @return array{day: string, night: string}
+     */
+    private function splitDayNightTemperature(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return ['day' => '', 'night' => ''];
+        }
+
+        if (str_contains($raw, '|')) {
+            [$day, $night] = array_pad(explode('|', $raw, 2), 2, '');
+
+            return [
+                'day' => trim($day),
+                'night' => trim($night),
+            ];
+        }
+
+        if (preg_match_all('/([+-]?\d+)\s*°?/u', $raw, $m) && count($m[1]) >= 4) {
+            $n = array_map('intval', array_slice($m[1], 0, 4));
+
+            return [
+                'day' => sprintf('%+d° %+d°', max($n[0], $n[1]), min($n[0], $n[1])),
+                'night' => sprintf('%+d° %+d°', max($n[2], $n[3]), min($n[2], $n[3])),
+            ];
+        }
+
+        if (preg_match('/^([+-]?\d+)\s*°?\s+([+-]?\d+)\s*°?$/u', $raw, $m)) {
+            return [
+                'day' => sprintf('%+d°', (int) $m[1]),
+                'night' => sprintf('%+d°', (int) $m[2]),
+            ];
+        }
+
+        return ['day' => $raw, 'night' => ''];
+    }
+
+    private function formatDayNightRanges(int $d1, int $d2, int $n1, int $n2): string
+    {
+        $dMax = max($d1, $d2);
+        $dMin = min($d1, $d2);
+        $nMax = max($n1, $n2);
+        $nMin = min($n1, $n2);
+
+        return sprintf('%+d° %+d°|%+d° %+d°', $dMax, $dMin, $nMax, $nMin);
     }
 
     private function buildMaterial(string $monthName, string $regionName, string $language): string

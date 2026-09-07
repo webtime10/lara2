@@ -30,6 +30,9 @@
                 <button type="button" class="btn btn-sm btn-success" id="btn-batch-123">
                     Прогнать всё
                 </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btn-batch-stop" style="display:none;">
+                    Остановить
+                </button>
             </div>
 
             <div id="batch-123-wrap" class="card card-outline card-success mb-3" style="display:none;">
@@ -38,6 +41,7 @@
                         <div id="batch-123-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:0%">0%</div>
                     </div>
                     <p id="batch-123-status" class="mb-2 text-muted">Подготовка…</p>
+                    <p id="batch-123-keys" class="mb-2 small text-muted"></p>
                     <ul id="batch-123-log" class="list-unstyled mb-0 small" style="max-height:220px; overflow-y:auto;"></ul>
                 </div>
             </div>
@@ -48,7 +52,8 @@
                         DataForSEO: <code>{{ $apiHint }}</code>, <code>keyword=hotels</code>, <code>currency=USD</code>.
                         Класс 1 / 2 / 3 — по цене внутри кантона.
                         Название отеля открывает сетку occupancy (1A, 2A, 3A…).
-                        Кнопка <strong>Прогнать всё</strong> — все отели кантона по галочкам из настроек (уже залитые пропускаются).
+                        Кнопка <strong>Прогнать всё</strong> — только незалитые ячейки по галочкам из
+                        <a href="{{ route('admin.budget.hotels.settings') }}">настроек (по посетителям)</a>; уже залитое пропускается (продолжение с места обрыва).
                         @if ($region->hotels_synced_at)
                             <br>Сохранено в БД: <strong>{{ $syncedCount ?? $items->total() }}</strong> отелей,
                             обновлено {{ $region->hotels_synced_at->format('d.m.Y H:i') }}.
@@ -103,6 +108,7 @@
     var occupancyUrlTpl = @json(url('/admin/budget/hotels/'.$region->slug.'/hotel/__ID__/occupancy'));
     var csrf = $('meta[name="csrf-token"]').attr('content');
     var running = false;
+    var stopRequested = false;
 
     function logLine(html, cls) {
         $('#batch-123-log').prepend('<li class="' + (cls || '') + '">' + html + '</li>');
@@ -128,77 +134,106 @@
         });
     }
 
+    function finishBatch(btn, ok, fail, stopped) {
+        running = false;
+        stopRequested = false;
+        btn.prop('disabled', false);
+        $('#btn-batch-stop').hide().prop('disabled', false);
+        var prefix = stopped ? 'Остановлено. ' : 'Готово. ';
+        $('#batch-123-status').text(prefix + 'ok=' + ok + ', ошибок=' + fail);
+        logLine('<strong>' + (stopped ? 'Стоп' : 'Финиш') + '</strong>: ok=' + ok + ', fail=' + fail, stopped ? 'text-warning' : 'text-success');
+    }
+
+    $('#btn-batch-stop').on('click', function () {
+        if (!running) return;
+        stopRequested = true;
+        $(this).prop('disabled', true);
+        $('#batch-123-status').text('Останавливаю после текущей ячейки…');
+    });
+
     $('#btn-batch-123').on('click', function () {
         if (running) return;
-        if (!confirm('Прогнать всё по галочкам из настроек?\nУже залитые ячейки будут пропущены.')) {
+        if (!confirm('Прогнать незалитые ячейки по составам гостей из настроек?\nУже залитое будет пропущено (продолжение с места обрыва).')) {
             return;
         }
 
         running = true;
+        stopRequested = false;
         var btn = $(this).prop('disabled', true);
+        $('#btn-batch-stop').show().prop('disabled', false);
         $('#batch-123-wrap').show();
         $('#batch-123-log').empty();
-        $('#batch-123-status').text('Загрузка списка отелей…');
+        $('#batch-123-keys').text('');
+        $('#batch-123-status').text('Считаю, что уже залито…');
         setProgress(0, 1);
 
         $.getJSON(listUrl).done(function (res) {
-            if (!res || !res.ok || !Array.isArray(res.hotels)) {
-                $('#batch-123-status').text('Не удалось получить список отелей');
-                running = false;
-                btn.prop('disabled', false);
+            if (!res || !res.ok) {
+                $('#batch-123-status').text('Не удалось получить план прогона');
+                finishBatch(btn, 0, 0, false);
                 return;
             }
 
             var keys = res.keys || [];
+            var labels = res.key_labels || {};
+            var jobs = Array.isArray(res.jobs) ? res.jobs : [];
+            var stats = res.stats || { done: 0, pending: jobs.length, total: jobs.length, hotels: 0 };
+
             if (!keys.length) {
                 $('#batch-123-status').text('В настройках не выбрано ни одной ячейки');
-                running = false;
-                btn.prop('disabled', false);
+                finishBatch(btn, 0, 0, false);
                 return;
             }
-            var hotels = res.hotels;
-            var queue = [];
-            hotels.forEach(function (h) {
-                keys.forEach(function (k) {
-                    queue.push({ id: h.id, title: h.title, key: k });
-                });
-            });
 
-            var total = queue.length;
+            $('#batch-123-keys').text(
+                'Составы: ' + keys.map(function (k) { return labels[k] || k; }).join(' · ')
+            );
+
+            if (!jobs.length) {
+                setProgress(1, 1);
+                $('#batch-123-status').text('Уже всё залито: ' + stats.done + '/' + stats.total);
+                logLine('Нечего дозаливать — все ячейки по выбранным составам уже есть.', 'text-success');
+                finishBatch(btn, 0, 0, false);
+                return;
+            }
+
+            var total = jobs.length;
             var i = 0;
             var ok = 0;
-            var skipped = 0;
             var fail = 0;
 
-            if (!total) {
-                $('#batch-123-status').text('Нет отелей с hotel_identifier');
-                running = false;
-                btn.prop('disabled', false);
-                return;
-            }
-
-            $('#batch-123-status').text('Отелей: ' + hotels.length + ', ячеек: ' + keys.length + ', задач: ' + total);
+            $('#batch-123-status').text(
+                'Уже было: ' + stats.done + '/' + stats.total + '. Осталось: ' + total + ' (отелей: ' + stats.hotels + ')'
+            );
+            logLine('Продолжаю с незалитых: ' + total + ' задач', 'text-muted');
 
             function next() {
-                if (i >= total) {
-                    setProgress(total, total);
-                    $('#batch-123-status').text('Готово. ok=' + ok + ', пропущено=' + skipped + ', ошибок=' + fail);
-                    logLine('<strong>Финиш</strong>: ok=' + ok + ', skip=' + skipped + ', fail=' + fail, 'text-success');
-                    running = false;
-                    btn.prop('disabled', false);
+                if (stopRequested) {
+                    setProgress(i, total);
+                    finishBatch(btn, ok, fail, true);
                     return;
                 }
 
-                var job = queue[i];
-                $('#batch-123-status').text((i + 1) + '/' + total + ' — ' + job.title + ' / ' + job.key);
+                if (i >= total) {
+                    setProgress(total, total);
+                    finishBatch(btn, ok, fail, false);
+                    return;
+                }
+
+                var job = jobs[i];
+                var label = labels[job.key] || job.key;
+                $('#batch-123-status').text(
+                    (stats.done + i + 1) + '/' + stats.total + ' — ' + job.title + ' / ' + label
+                );
                 setProgress(i, total);
 
-                fetchCell(job.id, job.key).done(function (r) {
+                fetchCell(job.hotel_id, job.key).done(function (r) {
                     if (!r || !r.ok) {
                         fail++;
                         logLine(job.title + ' / ' + job.key + ': ' + ((r && r.message) || 'ошибка'), 'text-danger');
                     } else if (r.skipped) {
-                        skipped++;
+                        // уже было — в pending-очереди почти не бывает
+                        ok++;
                     } else if (r.cell && r.cell.price != null) {
                         ok++;
                         logLine(job.title + ' / ' + job.key + ': $' + Math.round(r.cell.price), 'text-success');
@@ -218,9 +253,8 @@
 
             next();
         }).fail(function () {
-            $('#batch-123-status').text('Ошибка загрузки списка отелей');
-            running = false;
-            btn.prop('disabled', false);
+            $('#batch-123-status').text('Ошибка загрузки плана прогона');
+            finishBatch(btn, 0, 0, false);
         });
     });
 })(jQuery);

@@ -19,11 +19,12 @@ class WeatherIncomingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'month_name' => ['required', 'string', 'max:255'],
+            'month_name'  => ['required', 'string', 'max:255'],
             'region_name' => ['required', 'string', 'max:255'],
             'month' => ['nullable', 'integer'],
             'region' => ['nullable', 'integer'],
             'language' => ['required', 'string', 'max:10', Rule::in(Language::activeCodes())],
+            'country' => ['nullable', 'string', 'max:8', Rule::in(['ch', 'jp'])],
         ];
     }
 }

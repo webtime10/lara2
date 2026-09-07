@@ -50,14 +50,14 @@ return [
 
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
-        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
         'chat_timeout' => (int) env('GEMINI_CHAT_TIMEOUT', 900),
         'extraction_timeout' => (int) env('GEMINI_EXTRACTION_TIMEOUT', 1800),
     ],
 
     'gemini_pro' => [
         'key' => env('GEMINI_PRO_API_KEY'),
-        'model' => env('GEMINI_CREATIVE_MODEL', 'gemini-2.5-pro'),
+        'model' => env('GEMINI_CREATIVE_MODEL', 'gemini-3.6-flash'),
         'max_output_tokens' => (int) env('GEMINI_PRO_MAX_OUTPUT_TOKENS', 65536),
         'chat_timeout' => (int) env('GEMINI_PRO_CHAT_TIMEOUT', 1800),
     ],

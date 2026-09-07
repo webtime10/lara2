@@ -38,11 +38,30 @@
                         </small>
                     </button>
 
+                    <button
+                        type="button"
+                        id="swissHotelsOccupancyAllBtn"
+                        class="btn btn-success btn-lg ml-2"
+                    >
+                        Прогнать всё
+                        <br>
+                        <small class="font-weight-normal">по составам гостей (дозалить с места обрыва)</small>
+                    </button>
+                    <button
+                        type="button"
+                        id="swissHotelsOccupancyStopBtn"
+                        class="btn btn-outline-danger btn-lg ml-2"
+                        style="display:none;"
+                    >
+                        Остановить
+                    </button>
+
                     <div id="swissHotelsSyncProgress" class="mt-3" style="display: none;">
                         <div class="progress mb-2" style="height: 24px;">
                             <div id="swissHotelsSyncBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 0%;">0%</div>
                         </div>
                         <p id="swissHotelsSyncStatus" class="mb-2 text-muted">Подготовка...</p>
+                        <p id="swissHotelsOccupancyKeys" class="mb-2 small text-muted"></p>
                         <ul id="swissHotelsSyncLog" class="list-unstyled mb-0" style="max-height: 220px; overflow-y: auto;"></ul>
                     </div>
                 </div>
@@ -107,7 +126,11 @@
     var regions = @json($regions->map(fn ($r) => ['slug' => $r->slug, 'label' => $r->label])->values());
     var syncUrlBase = @json(url('/admin/budget/hotels/sync'));
     var completeUrl = @json(route('admin.budget.hotels.sync-all.complete', [], false));
+    var occupancyPlanUrl = @json(route('admin.budget.hotels.occupancy-batch-all'));
+    var occupancyUrlBase = @json(url('/admin/budget/hotels'));
     var running = false;
+    var occupancyRunning = false;
+    var occupancyStop = false;
 
     function postJson(url) {
         return fetch(url, {
@@ -119,6 +142,23 @@
                 'Content-Type': 'application/json',
             },
             body: '{}',
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); });
+    }
+
+    function postOccupancy(slug, hotelId, key) {
+        var url = occupancyUrlBase + '/' + encodeURIComponent(slug) + '/hotel/' + hotelId + '/occupancy';
+        var body = new URLSearchParams();
+        body.set('key', key);
+        body.set('skip_filled', '1');
+        return fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRF-TOKEN': csrf ? csrf.content : '',
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
         }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); });
     }
 
@@ -150,14 +190,156 @@
         progressBar.textContent = pct + '%';
     }
 
+    var occBtn = document.getElementById('swissHotelsOccupancyAllBtn');
+    var occStopBtn = document.getElementById('swissHotelsOccupancyStopBtn');
+    var occKeysEl = document.getElementById('swissHotelsOccupancyKeys');
+
+    occStopBtn.addEventListener('click', function () {
+        if (!occupancyRunning) return;
+        occupancyStop = true;
+        occStopBtn.disabled = true;
+        statusEl.textContent = 'Останавливаю после текущей ячейки…';
+    });
+
+    occBtn.addEventListener('click', function () {
+        if (running || occupancyRunning) return;
+        if (!confirm('Прогнать незалитые ячейки по всем кантонам?\nСоставы — из настроек «по посетителям». Уже залитое пропускается.')) {
+            return;
+        }
+
+        occupancyRunning = true;
+        occupancyStop = false;
+        occBtn.disabled = true;
+        btn.disabled = true;
+        occStopBtn.style.display = 'inline-block';
+        occStopBtn.disabled = false;
+        logEl.innerHTML = '';
+        occKeysEl.textContent = '';
+        progressBox.style.display = 'block';
+        progressBar.classList.add('progress-bar-animated', 'bg-success');
+        progressBar.classList.remove('bg-primary');
+        statusEl.textContent = 'Считаю незалитые ячейки по составам…';
+        setProgress(0, 1);
+
+        fetch(occupancyPlanUrl, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' },
+        }).then(function (r) { return r.json(); }).then(function (res) {
+            if (!res || !res.ok) {
+                statusEl.textContent = 'Не удалось получить план';
+                occupancyRunning = false;
+                occBtn.disabled = false;
+                btn.disabled = false;
+                occStopBtn.style.display = 'none';
+                return;
+            }
+
+            var keys = res.keys || [];
+            var labels = res.key_labels || {};
+            var jobs = res.jobs || [];
+            var stats = res.stats || { done: 0, pending: 0, total: 0, hotels: 0 };
+
+            occKeysEl.textContent = 'Составы: ' + keys.map(function (k) { return labels[k] || k; }).join(' · ');
+
+            if (!keys.length) {
+                statusEl.textContent = 'В настройках не выбрано ни одной ячейки';
+                occupancyRunning = false;
+                occBtn.disabled = false;
+                btn.disabled = false;
+                occStopBtn.style.display = 'none';
+                return;
+            }
+
+            if (!jobs.length) {
+                setProgress(1, 1);
+                statusEl.textContent = 'Уже всё залито: ' + stats.done + '/' + stats.total;
+                addLog('Нечего дозаливать', true);
+                occupancyRunning = false;
+                occBtn.disabled = false;
+                btn.disabled = false;
+                occStopBtn.style.display = 'none';
+                return;
+            }
+
+            var total = jobs.length;
+            var i = 0;
+            var ok = 0;
+            var fail = 0;
+
+            statusEl.textContent = 'Уже было: ' + stats.done + '/' + stats.total + '. Осталось: ' + total;
+            addLog('Продолжаю с незалитых: ' + total + ' задач', true);
+
+            function next() {
+                if (occupancyStop) {
+                    setProgress(i, total);
+                    statusEl.textContent = 'Остановлено. ok=' + ok + ', fail=' + fail + ', осталось=' + (total - i);
+                    addLog('Стоп на ' + i + '/' + total, false);
+                    occupancyRunning = false;
+                    occupancyStop = false;
+                    occBtn.disabled = false;
+                    btn.disabled = false;
+                    occStopBtn.style.display = 'none';
+                    return;
+                }
+
+                if (i >= total) {
+                    setProgress(total, total);
+                    statusEl.textContent = 'Готово. ok=' + ok + ', fail=' + fail;
+                    addLog('Финиш: ok=' + ok + ', fail=' + fail, true);
+                    occupancyRunning = false;
+                    occBtn.disabled = false;
+                    btn.disabled = false;
+                    occStopBtn.style.display = 'none';
+                    return;
+                }
+
+                var job = jobs[i];
+                var label = labels[job.key] || job.key;
+                statusEl.textContent = (stats.done + i + 1) + '/' + stats.total + ' — ' + job.region_label + ' / ' + job.title + ' / ' + label;
+                setProgress(i, total);
+
+                postOccupancy(job.region_slug, job.hotel_id, job.key).then(function (res) {
+                    if (res.ok && res.json && res.json.ok && res.json.cell && res.json.cell.price != null) {
+                        ok++;
+                        if (!res.json.skipped) {
+                            addLog(job.region_label + ' / ' + job.title + ' / ' + job.key + ' — $' + Math.round(res.json.cell.price), true);
+                        }
+                    } else {
+                        fail++;
+                        var msg = (res.json && (res.json.message || (res.json.cell && res.json.cell.error))) || 'ошибка';
+                        addLog(job.region_label + ' / ' + job.title + ' / ' + job.key + ' — ' + msg, false);
+                    }
+                }).catch(function () {
+                    fail++;
+                    addLog(job.region_label + ' / ' + job.title + ' / ' + job.key + ' — сеть', false);
+                }).finally(function () {
+                    i++;
+                    next();
+                });
+            }
+
+            next();
+        }).catch(function () {
+            statusEl.textContent = 'Ошибка загрузки плана';
+            occupancyRunning = false;
+            occBtn.disabled = false;
+            btn.disabled = false;
+            occStopBtn.style.display = 'none';
+        });
+    });
+
     btn.addEventListener('click', function () {
-        if (running) {
+        if (running || occupancyRunning) {
             return;
         }
         running = true;
         btn.disabled = true;
+        occBtn.disabled = true;
         logEl.innerHTML = '';
+        occKeysEl.textContent = '';
         progressBox.style.display = 'block';
+        progressBar.classList.add('progress-bar-animated', 'bg-primary');
+        progressBar.classList.remove('bg-success');
         setProgress(0, regions.length);
 
         var index = 0;
@@ -179,6 +361,7 @@
 
                 progressBar.classList.remove('progress-bar-animated');
                 btn.disabled = false;
+                occBtn.disabled = false;
                 running = false;
                 return;
             }
@@ -213,7 +396,7 @@
 
     document.querySelectorAll('.js-sync-hotel-region').forEach(function (button) {
         button.addEventListener('click', function () {
-            if (button.disabled) {
+            if (button.disabled || running || occupancyRunning) {
                 return;
             }
 

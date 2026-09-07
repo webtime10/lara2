@@ -14,12 +14,18 @@ class WeatherSyncRun extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     public const SOURCE_MANUAL = 'manual';
 
     public const SOURCE_SCHEDULE = 'schedule';
 
+    /** Автодозаливка пустых клеток после прогона с ошибками. */
+    public const SOURCE_REFILL = 'refill';
+
     protected $fillable = [
         'uuid',
+        'country',
         'status',
         'force',
         'only_empty',
@@ -53,7 +59,7 @@ class WeatherSyncRun extends Model
 
     public function isFinished(): bool
     {
-        return in_array($this->status, [self::STATUS_DONE, self::STATUS_FAILED], true)
+        return in_array($this->status, [self::STATUS_DONE, self::STATUS_FAILED, self::STATUS_CANCELLED], true)
             || ($this->total > 0 && $this->processed() >= $this->total);
     }
 

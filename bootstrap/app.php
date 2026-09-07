@@ -20,9 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
-        // 1-го числа каждого месяца — полное обновление погоды через очередь
-        $schedule->command('weather:sync --force --scheduled')
+        // 1-го числа: полная заливка заново; при fail — автодозаливка пустых волнами
+        $schedule->command('weather:sync --force --scheduled --country=ch')
             ->monthlyOn(1, '03:00')
+            ->withoutOverlapping();
+
+        $schedule->command('weather:sync --force --scheduled --country=jp')
+            ->monthlyOn(1, '04:00')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
