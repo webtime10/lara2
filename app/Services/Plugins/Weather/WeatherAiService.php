@@ -136,10 +136,12 @@ class WeatherAiService
 
             $answer = $request['text'];
             if ($answer === null || trim($answer) === '') {
-                $lastMessage = 'Модель '.$modelKey.' не вернула текст.';
+                $status = $request['http_status'];
+                $lastMessage = 'Модель '.$modelKey.' не вернула текст.'
+                    .($status !== null ? ' (HTTP '.$status.')' : '');
                 Log::warning('[plugin:weather] empty_response', [
                     'model' => $modelKey,
-                    'http_status' => $request['http_status'],
+                    'http_status' => $status,
                     'language' => $language,
                 ]);
                 continue;

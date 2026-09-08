@@ -14,6 +14,9 @@ class GeminiService
 {
     protected ?int $lastHttpStatus = null;
 
+    /** Модель по умолчанию, если в .env ещё старый gemini-2.5-flash (404 у новых ключей). */
+    public const FALLBACK_MODEL = 'gemini-3.6-flash';
+
     public function __construct(
         protected string $configKeyPath = 'services.gemini.key',
         protected string $configModelPath = 'services.gemini.model',
@@ -22,14 +25,14 @@ class GeminiService
         protected string $missingModelEnvHint = 'GEMINI_MODEL',
     ) {}
 
-    /**
-     * @param  array<string, mixed>|null  $generationConfig
-     */
     public function lastHttpStatus(): ?int
     {
         return $this->lastHttpStatus;
     }
 
+    /**
+     * @param  array<string, mixed>|null  $generationConfig
+     */
     public function chat(string $material, string $instruction, int $timeoutSeconds = 180, ?array $generationConfig = null): ?string
     {
         $this->lastHttpStatus = null;
@@ -59,6 +62,35 @@ class GeminiService
             return null;
         }
 
+        $text = $this->requestGenerateContent($apiKey, $model, $material, $instruction, $timeoutSeconds, $generationConfig);
+
+        // Старые ключи/хосты с gemini-2.5-flash получают 404 — пробуем актуальный Flash.
+        if ($text === null && $this->lastHttpStatus === 404 && $model !== self::FALLBACK_MODEL) {
+            Log::warning('['.$this->logTag.'] chat: модель '.$model.' недоступна (404), fallback → '.self::FALLBACK_MODEL);
+            $text = $this->requestGenerateContent(
+                $apiKey,
+                self::FALLBACK_MODEL,
+                $material,
+                $instruction,
+                $timeoutSeconds,
+                $generationConfig
+            );
+        }
+
+        return $text;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $generationConfig
+     */
+    private function requestGenerateContent(
+        string $apiKey,
+        string $model,
+        string $material,
+        string $instruction,
+        int $timeoutSeconds,
+        ?array $generationConfig,
+    ): ?string {
         $userContent = $instruction."\n\n--- SOURCE TEXT ---\n".$material;
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
             .rawurlencode($model)
@@ -72,8 +104,14 @@ class GeminiService
                 ],
             ],
         ];
-        if ($generationConfig !== null && $generationConfig !== []) {
-            $payload['generationConfig'] = $generationConfig;
+
+        // Gemini 3: minimal thinking для JSON; на 2.x параметр может дать 400.
+        $mergedConfig = is_array($generationConfig) ? $generationConfig : [];
+        if (str_starts_with($model, 'gemini-3') && ! isset($mergedConfig['thinkingConfig'])) {
+            $mergedConfig['thinkingConfig'] = ['thinkingLevel' => 'minimal'];
+        }
+        if ($mergedConfig !== []) {
+            $payload['generationConfig'] = $mergedConfig;
         }
 
         try {
@@ -84,27 +122,70 @@ class GeminiService
         } catch (Throwable $e) {
             Log::error('['.$this->logTag.'] chat: сеть/HTTP исключение', [
                 'message' => $e->getMessage(),
+                'model' => $model,
             ]);
 
             return null;
         }
 
+        $this->lastHttpStatus = $response->status();
+
         if (! $response->successful()) {
-            $this->lastHttpStatus = $response->status();
             Log::error('['.$this->logTag.'] chat: неуспешный ответ API', [
                 'status' => $this->lastHttpStatus,
+                'model' => $model,
                 'body' => $this->truncateForLog($response->body()),
             ]);
 
             return null;
         }
 
-        $text = $response->json('candidates.0.content.parts.0.text');
-        if (! is_string($text)) {
+        $text = $this->extractTextFromResponse($response->json());
+        if ($text === null) {
+            Log::warning('['.$this->logTag.'] chat: пустой текст в candidates', [
+                'model' => $model,
+                'body' => $this->truncateForLog($response->body(), 2000),
+            ]);
+        }
+
+        return $text;
+    }
+
+    /**
+     * Берём все text-части без thought (Gemini 3 может отдать reasoning первым).
+     *
+     * @param  mixed  $json
+     */
+    private function extractTextFromResponse(mixed $json): ?string
+    {
+        if (! is_array($json)) {
             return null;
         }
 
-        $text = trim($text);
+        $parts = $json['candidates'][0]['content']['parts'] ?? null;
+        if (! is_array($parts) || $parts === []) {
+            return null;
+        }
+
+        $chunks = [];
+        foreach ($parts as $part) {
+            if (! is_array($part)) {
+                continue;
+            }
+            if (! empty($part['thought'])) {
+                continue;
+            }
+            $piece = $part['text'] ?? null;
+            if (is_string($piece) && trim($piece) !== '') {
+                $chunks[] = trim($piece);
+            }
+        }
+
+        if ($chunks === []) {
+            return null;
+        }
+
+        $text = trim(implode("\n", $chunks));
 
         return $text !== '' ? $text : null;
     }
