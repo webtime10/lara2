@@ -2,124 +2,92 @@
 
 namespace Tests\Unit\Services\Plugins\Weather;
 
-use App\Models\Language;
-use App\Models\WeatherPromt;
-use App\Services\Plugins\Weather\WeatherAiService;
+use App\Models\WeatherMonthStat;
 use App\Services\Plugins\Weather\WeatherIngestService;
-use App\Support\WeatherAiModelChoice;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Config;
+use App\Services\Plugins\Weather\WeatherMonthStatLookupService;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
 
 class WeatherIngestServiceCacheTest extends TestCase
 {
-    private const PROMPT_TEXT = 'Test weather prompt for cache unit test.';
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Cache::flush();
-
-        Config::set('services.plugins.weather.cache.enabled', true);
-        Config::set('services.plugins.weather.cache.ttl_hours', 48);
-
-        $this->seedDatabase();
-    }
-
-    public function test_accept_caches_ai_result_and_reuses_it_on_second_call(): void
+    public function test_accept_returns_db_lookup_result_without_ai(): void
     {
         $payload = [
             'month_name' => 'January',
-            'region_name' => 'Tel Aviv',
-            'language' => 'en',
+            'region_name' => 'Цуг',
+            'language' => 'ar',
+            'country' => 'ch',
         ];
 
         $weatherData = [
-            'temperature_c' => 18,
-            'summary' => 'Mild winter weather',
-            'precipitation_mm' => 42,
+            'temperature' => '+1° -2°|-4° -8°',
+            'temperature_day' => '+1° -2°',
+            'temperature_night' => '-4° -8°',
+            'precipitation' => 'متوسط',
+            'sunny_days' => '5-8',
+            'season' => 'شتاء',
+            'summary' => '',
         ];
 
-        $aiResult = [
-            'ok' => true,
-            'message' => 'AI generated weather',
-            'weather' => $weatherData,
-            'model' => WeatherAiModelChoice::GEMINI_FLASH,
-            'language' => 'en',
-        ];
-
-        $aiMock = Mockery::mock(WeatherAiService::class);
-        $aiMock->shouldReceive('run')
+        $lookup = Mockery::mock(WeatherMonthStatLookupService::class);
+        $lookup->shouldReceive('find')
             ->once()
             ->with($payload)
-            ->andReturn($aiResult);
+            ->andReturn([
+                'ok' => true,
+                'message' => '',
+                'weather' => $weatherData,
+                'model' => 'weather_month_stats',
+                'language' => 'ar',
+                'from_db' => true,
+            ]);
 
-        $service = new WeatherIngestService($aiMock);
+        $service = new WeatherIngestService($lookup);
+        $response = $service->accept($payload);
 
-        $firstResponse = $service->accept($payload);
-        $cacheKey = $this->expectedCacheKey($payload);
-
-        $this->assertFalse($firstResponse['from_cache']);
-        $this->assertSame($weatherData, $firstResponse['weather']);
-        $this->assertNotNull(Cache::get($cacheKey), 'First accept() should store AI result in cache.');
-
-        $secondResponse = $service->accept($payload);
-
-        $this->assertTrue($secondResponse['from_cache']);
-        $this->assertSame($weatherData, $secondResponse['weather']);
-        $this->assertSame($firstResponse['weather'], $secondResponse['weather']);
+        $this->assertTrue($response['ok']);
+        $this->assertTrue($response['from_db']);
+        $this->assertFalse($response['from_cache']);
+        $this->assertSame($weatherData, $response['weather']);
+        $this->assertSame('weather_month_stats', $response['model']);
     }
 
-    private function seedDatabase(): void
+    public function test_lookup_finds_filled_stat_by_region_and_month_name(): void
     {
-        if (! Schema::hasTable('languages')) {
-            $this->artisan('migrate', [
-                '--path' => 'database/migrations/2026_03_21_100000_create_languages_table.php',
-            ]);
+        if (! Schema::hasTable('weather_month_stats')) {
+            $this->markTestSkipped('weather_month_stats missing');
         }
 
-        if (! Schema::hasTable('weather_promt')) {
-            $this->artisan('migrate', [
-                '--path' => 'database/migrations/2026_06_03_120000_create_weather_promt_table.php',
-            ]);
-        }
-
-        if (Language::query()->where('code', 'en')->doesntExist()) {
-            Language::create([
-                'name' => 'English',
-                'code' => 'en',
-                'locale' => 'en_US',
-                'is_active' => true,
-                'is_default' => true,
-                'status' => true,
-            ]);
-        }
-
-        WeatherPromt::updateOrCreate(
-            ['name' => WeatherAiModelChoice::SETTING_NAME],
-            ['content' => WeatherAiModelChoice::GEMINI_FLASH]
+        WeatherMonthStat::query()->updateOrCreate(
+            [
+                'country' => 'ch',
+                'region_slug' => 'zug',
+                'month' => 1,
+            ],
+            [
+                'region_name_ru' => 'Цуг',
+                'average_temperature' => '+2° +0°|-3° -7°',
+                'precipitation' => 'средний',
+                'sunny_days' => '6',
+                'season' => 'зима',
+                'ai_model' => 'test',
+                'last_checked' => now(),
+            ]
         );
 
-        WeatherPromt::updateOrCreate(
-            ['name' => 'glavnyy_prompt_en'],
-            ['content' => self::PROMPT_TEXT]
-        );
-    }
+        $lookup = new WeatherMonthStatLookupService();
+        $result = $lookup->find([
+            'country' => 'ch',
+            'region_name' => 'Цуг',
+            'month_name' => 'January',
+            'language' => 'en',
+            'month' => 9999,
+        ]);
 
-    /**
-     * Mirrors cache key construction in WeatherIngestService::accept().
-     */
-    private function expectedCacheKey(array $payload): string
-    {
-        $language = strtolower(trim((string) ($payload['language'] ?? '')));
-        $month = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) ($payload['month_name'] ?? '')) ?: ''), 'UTF-8');
-        $region = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) ($payload['region_name'] ?? '')) ?: ''), 'UTF-8');
-        $modelKey = WeatherAiModelChoice::normalize(WeatherAiModelChoice::GEMINI_FLASH);
-        $promptHash = sha1(self::PROMPT_TEXT);
-
-        return 'plugin_weather_result:'.sha1('v1|'.$language.'|'.$month.'|'.$region.'|'.$modelKey.'|'.$promptHash);
+        $this->assertTrue($result['ok']);
+        $this->assertTrue($result['from_db'] ?? false);
+        $this->assertSame('+2° +0°', $result['weather']['temperature_day']);
+        $this->assertSame('-3° -7°', $result['weather']['temperature_night']);
     }
 }
