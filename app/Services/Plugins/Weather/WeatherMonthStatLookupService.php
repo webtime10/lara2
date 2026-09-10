@@ -162,6 +162,7 @@ class WeatherMonthStatLookupService
                 $row['slug'] ?? '',
                 $row['name_ru'] ?? '',
                 $row['name_ar'] ?? '',
+                $row['name_he'] ?? '',
             ];
             foreach ($candidates as $candidate) {
                 if ($candidate !== '' && $this->normalizeName((string) $candidate) === $norm) {

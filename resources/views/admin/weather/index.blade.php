@@ -99,7 +99,7 @@
                         <thead>
                             <tr>
                                 <th class="text-left" style="min-width: 220px; position: sticky; left: 0; background: #f4f6f9; z-index: 1;">Регион (RU)</th>
-                                <th class="text-left" style="min-width: 140px;">AR</th>
+                                <th class="text-left" style="min-width: 140px;">{{ ($country ?? 'ch') === 'jp' ? 'HE' : 'AR' }}</th>
                                 @foreach ($months as $month)
                                     <th style="min-width: 88px;">{{ $monthNames[$month] ?? $month }}</th>
                                 @endforeach
@@ -126,7 +126,7 @@
                                             @endif
                                         </small>
                                     </td>
-                                    <td class="text-left text-muted" style="direction: rtl;">{{ $canton['name_ar'] }}</td>
+                                    <td class="text-left text-muted" style="direction: rtl;">{{ ($country ?? 'ch') === 'jp' ? ($canton['name_he'] ?? $canton['name_ar'] ?? '') : ($canton['name_ar'] ?? '') }}</td>
                                     @foreach ($months as $month)
                                         @php
                                             /** @var \App\Models\WeatherMonthStat|null $stat */
